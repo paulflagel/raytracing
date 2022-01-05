@@ -7,7 +7,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-//#define M_PI 3.14159265359
+#include <algorithm>
+#include <iostream>
 
 // & : au lieu de passer en paramètre le vecteur soit 3 fois 64 bits, on passe une adresse qui est 1 fois 64 bits
 
@@ -70,7 +71,7 @@ Vector cross(const Vector &a, const Vector &b)
     return Vector(a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]);
 }
 
-void operator/=(double x) class Ray
+class Ray
 {
 public:
     explicit Ray(const Vector &origin, const Vector &direction)
@@ -90,7 +91,7 @@ public:
         R = radius;
     }
 
-    bool intersect(const Ray &r)
+    bool intersect(const Ray &r, Vector &P, Vector &N) // Tester si la sphère est sur la
     {
         //On résoud l'équation du second degré a*T^2 + b*t + c = 0
         double a = 1;
@@ -101,6 +102,25 @@ public:
 
         if (delta >= 0)
         {
+            double t1 = (-b - sqrt(delta)) / (2 * a);
+            double t2 = (-b + sqrt(delta)) / (2 * a);
+            if (t2 < 0) // Les deux solutions sont négatives
+            {
+                return false;
+            }
+            double t;
+            if (t1 < 0)
+            {
+                t = t2;
+            }
+            else
+            {
+                t = t1;
+            }
+
+            P = r.C + t * r.u;
+            N = P - O;
+            N.normalize();
             return true;
         }
         return false;
@@ -116,12 +136,12 @@ int main()
     int H = 512;
 
     Vector C(0, 0, 55);            // Camera
-    Sphere s(Vector(0, 0, 0), 10); // Sphere
-    Vector l(-10, 20, 40);         // Source de lumière
-    double fov = 60 * M_PI / 180;  // Field of view
+    Sphere s(Vector(0, 0, 0), 10); // Sphere à l'origine, de rayon 10
+    Vector L(-10, 20, 40);         // Source de lumière
+    double fov = 60 * M_PI / 180;  // Field of view 60°
     double tanfov2 = tan(fov / 2);
-    Vector rhoSphere(1., 0., 0.);
-    double I = 100000;
+    Vector rhoSphere(0.1, 0.4, 0.1); // Albedo de la sphère
+    double I = 100000;               // Intensité de la lumière
 
     std::vector<unsigned char>
         image(W * H * 3, 0); // Crée un tableau 1D de W*H*3 éléments initialisés à 0 (l'image)
@@ -133,18 +153,18 @@ int main()
             Vector u(j - W / 2 + 0.5, (H - i) - (H / 2) + 0.5, -W / (2 * tanfov2)); // On ajoute 0.5 pour être au centre des pixels plutôt que dans les coins
             u.normalize();
             Ray r(C, u); // Rayon issu de C dans la direction u
-            Vector N;
-            Vector col(0, 0, 0);
-            Vector l = L - P;
-            l.normalize();
-            l /= sqrt(dL2);
+            Vector P, n; // Point d'intersection et vecteur normal à la surface en P
 
-            if (s.intersect(r, N))
+            if (s.intersect(r, P, n))
             {
-                col = rhoSphere * I * std::max(0., dot(1, N) / sqrt(dL2) * 4 * M_PI);
-                image[(i * W + j) * 3 + 0] = std::min(col[0]); // R
-                image[(i * W + j) * 3 + 1] = std::min(col[1]); // G
-                image[(i * W + j) * 3 + 2] = std::min(col[2]); // B
+                Vector l = L - P;
+                double lnorm2 = l.norm2();
+                l.normalize();
+
+                Vector col = rhoSphere * I * std::max(0., dot(l, n) / lnorm2 * 4 * M_PI);
+                image[(i * W + j) * 3 + 0] = std::min(255., col[0]); // R
+                image[(i * W + j) * 3 + 1] = std::min(255., col[1]); // G
+                image[(i * W + j) * 3 + 2] = std::min(255., col[2]); // B
             }
         }
     }
