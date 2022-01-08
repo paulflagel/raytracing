@@ -140,8 +140,8 @@ int main()
     Vector L(-10, 20, 40);         // Source de lumière
     double fov = 60 * M_PI / 180;  // Field of view 60°
     double tanfov2 = tan(fov / 2);
-    Vector rhoSphere(0.1, 0.4, 0.1); // Albedo de la sphère
-    double I = 100000;               // Intensité de la lumière
+    Vector rhoSphere(0.2, 1.0, 0.2); // Albedo de la sphère
+    double I = 25000;                // Intensité de la lumière
 
     std::vector<unsigned char>
         image(W * H * 3, 0); // Crée un tableau 1D de W*H*3 éléments initialisés à 0 (l'image)
