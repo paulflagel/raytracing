@@ -85,13 +85,14 @@ public:
 class Sphere
 {
 public:
-    explicit Sphere(const Vector &origin, double radius)
+    explicit Sphere(const Vector &origin, double radius, const Vector &rhoSphere)
     {
         O = origin;
         R = radius;
+        albedo = rhoSphere;
     }
 
-    bool intersect(const Ray &r, Vector &P, Vector &N) // Tester si la sphère est sur la
+    bool intersect(const Ray &r, Vector &P, Vector &N, double &t) // Tester si la sphère est sur la trajectoire
     {
         //On résoud l'équation du second degré a*T^2 + b*t + c = 0
         double a = 1;
@@ -108,7 +109,6 @@ public:
             {
                 return false;
             }
-            double t;
             if (t1 < 0)
             {
                 t = t2;
@@ -128,6 +128,40 @@ public:
 
     Vector O;
     double R;
+    Vector albedo;
+};
+
+class Scene
+{
+public:
+    Scene() {}
+    void add(Sphere &s) { liste_spheres.push_back(s); } //Ajoute la sphere à la fin de la liste
+
+    bool intersect(const Ray &r, Vector &P, Vector &N, int &sphere_id)
+    {
+        double distance_min = 1e99;
+        bool scene_intersection = false; // est-ce que la scène possède au moins une intersection
+        for (int k = 0; k < liste_spheres.size(); k++)
+        {
+            Vector Psphere, Nsphere;
+            double local_distance;
+
+            bool local_intersection = liste_spheres[k].intersect(r, Psphere, Nsphere, local_distance);
+            if (local_intersection)
+            {
+                scene_intersection = true;
+                if (local_distance < distance_min)
+                {
+                    distance_min = local_distance;
+                    P = Psphere;
+                    N = Nsphere;
+                    sphere_id = k;
+                }
+            }
+        }
+        return scene_intersection;
+    }
+    std::vector<Sphere> liste_spheres;
 };
 
 int main()
@@ -135,13 +169,39 @@ int main()
     int W = 512;
     int H = 512;
 
-    Vector C(0, 0, 55);            // Camera
-    Sphere s(Vector(0, 0, 0), 10); // Sphere à l'origine, de rayon 10
-    Vector L(-10, 20, 40);         // Source de lumière
-    double fov = 60 * M_PI / 180;  // Field of view 60°
+    Vector C(0, 0, 55);           // Camera
+    Vector L(-10, 20, 40);        // Source de lumière
+    double fov = 60 * M_PI / 180; // Field of view 60°
     double tanfov2 = tan(fov / 2);
-    Vector rhoSphere(0.2, 1.0, 0.2); // Albedo de la sphère
-    double I = 25000;                // Intensité de la lumière
+    double I = 70000; // Intensité de la lumière
+
+    Scene scene;
+
+    // Sphere 1 à l'origine, de rayon 10
+    Vector albedo1(0.1, 0.3, 0.1);
+    Sphere s1(Vector(0, 0, 0), 10, albedo1);
+
+    // Sphère devant la caméra (verte)
+    Vector albedoFront(0.3, 0.4, 0.3); // Albédo de la boule verte
+    Sphere sFront(Vector(0, 0, -1000), 940, albedoFront);
+
+    // Sphère derrière la caméra (magenta)
+    Vector albedoBack(0.4, 0.3, 0.4); // Albédo de la boule magenta
+    Sphere sBack(Vector(0, 0, 1000), 940, albedoBack);
+
+    // Sphère en haut (rouge)
+    Vector albedoUp(0.4, 0.3, 0.3); // Albédo de la boule rouge
+    Sphere sUp(Vector(0, 1000, 0), 940, albedoUp);
+
+    // Sphère en bas (bleue)
+    Vector albedoDown(0.3, 0.3, 0.4); // Albédo de la boule bleue
+    Sphere sDown(Vector(0, -1000, 0), 990, albedoDown);
+
+    scene.add(s1);
+    scene.add(sFront);
+    scene.add(sBack);
+    scene.add(sUp);
+    scene.add(sDown);
 
     std::vector<unsigned char>
         image(W * H * 3, 0); // Crée un tableau 1D de W*H*3 éléments initialisés à 0 (l'image)
@@ -153,18 +213,20 @@ int main()
             Vector u(j - W / 2 + 0.5, (H - i) - (H / 2) + 0.5, -W / (2 * tanfov2)); // On ajoute 0.5 pour être au centre des pixels plutôt que dans les coins
             u.normalize();
             Ray r(C, u); // Rayon issu de C dans la direction u
-            Vector P, n; // Point d'intersection et vecteur normal à la surface en P
+            Vector P, n; // Point d'intersection rayon/sphère et vecteur normal à la surface en P
+            int id_sphere;
 
-            if (s.intersect(r, P, n))
+            if (scene.intersect(r, P, n, id_sphere))
             {
-                Vector l = L - P;
-                double lnorm2 = l.norm2();
+                Vector l = L - P;          // vecteur unitaire en P dirigé vers la source de lumière
+                double lnorm2 = l.norm2(); // norme de l
                 l.normalize();
+                Vector rho = scene.liste_spheres[id_sphere].albedo;
 
-                Vector col = rhoSphere * I * std::max(0., dot(l, n) / lnorm2 * 4 * M_PI);
-                image[(i * W + j) * 3 + 0] = std::min(255., col[0]); // R
-                image[(i * W + j) * 3 + 1] = std::min(255., col[1]); // G
-                image[(i * W + j) * 3 + 2] = std::min(255., col[2]); // B
+                Vector col = rho * I * std::max(0., dot(l, n) / lnorm2 * 4 * M_PI); //on clamp à 0 pour pas avoir une intensité négative
+                image[(i * W + j) * 3 + 0] = std::min(255., col[0]);                // R
+                image[(i * W + j) * 3 + 1] = std::min(255., col[1]);                // G
+                image[(i * W + j) * 3 + 2] = std::min(255., col[2]);                // B
             }
         }
     }
