@@ -3,3 +3,4 @@ main
 *.dSYM
 .vscode
 .DS_Store
+/images
