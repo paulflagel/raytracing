@@ -170,34 +170,44 @@ int main()
     int H = 512;
 
     Vector C(0, 0, 55);           // Camera
-    Vector L(-10, 20, 40);        // Source de lumière
+    Vector L(-10, 20, 30);        // Source de lumière
     double fov = 60 * M_PI / 180; // Field of view 60°
     double tanfov2 = tan(fov / 2);
-    double I = 70000; // Intensité de la lumière
+    double I = 50000; // Intensité de la lumière
 
     Scene scene;
 
     // Sphere 1 à l'origine, de rayon 10
-    Vector albedo1(0.1, 0.3, 0.1);
+    Vector albedo1(0.4, 0.1, 0.);
     Sphere s1(Vector(0, 0, 0), 10, albedo1);
 
+    // Sphere 2
+    Vector albedo2(0.3, 0., 0.3);
+    Sphere s2(Vector(-20, 15, -20), 5, albedo2);
+
+    // Sphere 3
+    Vector albedo3(0.3, 0.3, 0.1);
+    Sphere s3(Vector(20, -2, 5), 3, albedo3);
+
     // Sphère devant la caméra (verte)
-    Vector albedoFront(0.3, 0.4, 0.3); // Albédo de la boule verte
+    Vector albedoFront(0., 0.8, 0.);
     Sphere sFront(Vector(0, 0, -1000), 940, albedoFront);
 
     // Sphère derrière la caméra (magenta)
-    Vector albedoBack(0.4, 0.3, 0.4); // Albédo de la boule magenta
+    Vector albedoBack(0.4, 0., 0.4);
     Sphere sBack(Vector(0, 0, 1000), 940, albedoBack);
 
     // Sphère en haut (rouge)
-    Vector albedoUp(0.4, 0.3, 0.3); // Albédo de la boule rouge
+    Vector albedoUp(0.8, 0., 0.);
     Sphere sUp(Vector(0, 1000, 0), 940, albedoUp);
 
     // Sphère en bas (bleue)
-    Vector albedoDown(0.3, 0.3, 0.4); // Albédo de la boule bleue
+    Vector albedoDown(0., 0.1, 0.3);
     Sphere sDown(Vector(0, -1000, 0), 990, albedoDown);
 
     scene.add(s1);
+    scene.add(s2);
+    scene.add(s3);
     scene.add(sFront);
     scene.add(sBack);
     scene.add(sUp);
