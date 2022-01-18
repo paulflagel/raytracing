@@ -173,7 +173,7 @@ int main()
     Vector L(-10, 20, 30);        // Source de lumière
     double fov = 60 * M_PI / 180; // Field of view 60°
     double tanfov2 = tan(fov / 2);
-    double I = 50000; // Intensité de la lumière
+    double I = 10000000; // Intensité de la lumière
 
     Scene scene;
 
@@ -233,10 +233,10 @@ int main()
                 l.normalize();
                 Vector rho = scene.liste_spheres[id_sphere].albedo;
 
-                Vector col = rho * I * std::max(0., dot(l, n) / lnorm2 * 4 * M_PI); //on clamp à 0 pour pas avoir une intensité négative
-                image[(i * W + j) * 3 + 0] = std::min(255., col[0]);                // R
-                image[(i * W + j) * 3 + 1] = std::min(255., col[1]);                // G
-                image[(i * W + j) * 3 + 2] = std::min(255., col[2]);                // B
+                Vector col = rho * I * std::max(0., dot(l, n)) / (lnorm2 * 4 * M_PI); //on clamp à 0 pour pas avoir une intensité négative
+                image[(i * W + j) * 3 + 0] = std::min(255., col[0]);                  // R
+                image[(i * W + j) * 3 + 1] = std::min(255., col[1]);                  // G
+                image[(i * W + j) * 3 + 2] = std::min(255., col[2]);                  // B
             }
         }
     }
