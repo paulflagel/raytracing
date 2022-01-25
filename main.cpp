@@ -86,12 +86,14 @@ public:
 class Sphere
 {
 public:
-    explicit Sphere(const Vector &origin, double radius, const Vector &albedo, bool mirror = false)
+    explicit Sphere(const Vector &origin, double radius, const Vector &albedo, bool mirror = false, bool transparent = false, double refraction_index = 1.4)
     {
         this->O = origin;
         this->R = radius;
         this->albedo = albedo;
         this->mirror = mirror;
+        this->transp = transparent;
+        this->refraction_index = refraction_index;
     }
 
     bool intersect(const Ray &r, Vector &P, Vector &N, double &t) // Tester si la sphère est sur la trajectoire
@@ -131,7 +133,8 @@ public:
     Vector O;
     double R;
     Vector albedo;
-    bool mirror;
+    bool mirror, transp;
+    double refraction_index;
 };
 
 class Scene
@@ -176,45 +179,79 @@ public:
 
     Vector getColor(Ray &r, int rebond)
     {
-        if (rebond <= 0)
+        if (rebond <= 0) // Condition de fin de récursion
         {
-            return Vector(0, 0, 0);
+            return Vector(60000., 0., 0.);
         }
-        Vector P, n; // Point d'intersection rayon/sphère et vecteur normal à la surface en P
-        int id_sphere;
-        double t; // distance entre la caméra et l'intersection
+        Vector P, n;   // Point d'intersection rayon/sphère et vecteur normal à la surface en P
+        int id_sphere; // Id de la sphère intersectée
+        double t;      // distance entre la caméra et l'intersection
 
         if (this->intersect(r, P, n, id_sphere, t))
         {
-            if (!this->liste_spheres[id_sphere].mirror)
+            if (!this->liste_spheres[id_sphere].mirror && !this->liste_spheres[id_sphere].transp) // Si la surface est diffuse (pas miroir)
             {
                 Vector l = this->L - P;        // vecteur unitaire en P dirigé vers la source de lumière
                 double lnorm2 = l.norm2();     // norme 2 de l
                 double distlum = sqrt(lnorm2); // distance entre la lumière L et le point d'intersection de la boule P
-                l.normalize();                 // l est un vecteur unitaire
+                l.normalize();                 // on transforme l en vecteur unitaire
                 Vector rho = this->liste_spheres[id_sphere].albedo;
 
+                // Grandeurs calculées pour l'ombre portée
                 Vector Plum, nlum;
                 double tlum;
                 int idlum;
 
                 if (this->intersect(Ray(P + (0.01 * n), l), Plum, nlum, idlum, tlum) && tlum < distlum) // Calcul d'ombre portée
                 {
-                    return Vector(0, 0, 0);
+                    return Vector(0., 0., 0.);
+                }
+                else // Pas d'ombre portée, on fait le calcul normal de couleur
+                {
+                    return rho * this->I * std::max(0., dot(l, n)) / (lnorm2 * 4 * M_PI); // clamp à 0 pour pas avoir une intensité négative
+                }
+            }
+            else if (this->liste_spheres[id_sphere].transp) // surface transparente
+            {
+                double dot_incident_normal = dot(r.u, n);
+                double n1, n2;
+                if (dot_incident_normal < 0)
+                {
+                    n1 = 1.0;
+                    n2 = this->liste_spheres[id_sphere].refraction_index;
                 }
                 else
                 {
-                    return rho * this->I * std::max(0., dot(l, n)) / (lnorm2 * 4 * M_PI); //on clamp à 0 pour pas avoir une intensité négative
+                    n1 = this->liste_spheres[id_sphere].refraction_index;
+                    n2 = 1.0;
+                    n = -1 * n;
+                }
+
+                double normal_sqrt_term = 1 - (n1 / n2) * (n1 / n2) * (1 - dot_incident_normal * dot_incident_normal);
+
+                if (normal_sqrt_term < 0) // Réflexion totale
+                {
+                    Vector uReflected = r.u - 2 * dot(r.u, n) * n;
+                    Ray rReflected(P + (0.01 * n), uReflected);
+                    return this->getColor(rReflected, rebond - 1);
+                }
+                else
+                {
+                    Vector uRefractedN = -sqrt(normal_sqrt_term) * n;
+                    Vector uRefractedT = (n1 / n2) * (r.u - dot_incident_normal * n);
+                    Vector uRefracted = uRefractedN + uRefractedT;
+                    Ray rRefracted(P - (0.01 * n), uRefracted);
+                    return this->getColor(rRefracted, rebond - 1);
                 }
             }
-            else
+            else // surface miroir : on appelle la méthode récursivement
             {
                 Vector uReflected = r.u - 2 * dot(r.u, n) * n;
                 Ray rReflected(P + (0.01 * n), uReflected);
                 return this->getColor(rReflected, rebond - 1);
             }
         }
-        return Vector(0, 0, 0);
+        return Vector(0., 0., 0.);
     }
 };
 
@@ -233,31 +270,33 @@ int main()
     Scene scene(I, L);
 
     // Sphere 1 à l'origine, de rayon 10
-    Vector albedo1(0.4, 0.1, 0.);
-    Sphere s1(Vector(0, 0, 0), 10, albedo1, mirror);
+    Sphere s1(Vector(0, 0, 0), 10, Vector(0.4, 0.1, 0.), false, true);
     // Sphere 2
-    Vector albedo2(0.3, 0., 0.3);
-    Sphere s2(Vector(-20, 15, -20), 5, albedo2, mirror);
+    Sphere s2(Vector(-20, 15, -20), 5, Vector(0.3, 0., 0.3), true);
     // Sphere 3
-    Vector albedo3(0.3, 0.3, 0.1);
-    Sphere s3(Vector(20, -2, 5), 3, albedo3, mirror);
-    // Sphère derrière la caméra (magenta)
-    Vector albedoBack(0.4, 0.3, 0.5);
-    Sphere sBack(Vector(0, 0, -3040), 3000, albedoBack);
-    // Sphère en haut (rouge)
-    Vector albedoUp(0.4, 0.2, 0.6);
-    Sphere sUp(Vector(0, 3040, 0), 3000, albedoUp);
-    // Sphère en bas (bleue)
-    Vector albedoDown(0.4, 0.2, 0.6);
-    Sphere sDown(Vector(0, -3015, 0), 3000, albedoDown);
+    Sphere s3(Vector(20, -2, 5), 3, Vector(0.3, 0.3, 0.1), true);
+    // Sphère derrière la boule
+    Sphere sBack(Vector(0, 0, -1000), 940, Vector(0., 1., 0.));
+    // Sphère derrière la caméra
+    Sphere sFront(Vector(0, 0, 1000), 940, Vector(1., 0., 1.));
+    // Plafond
+    Sphere sUp(Vector(0, 1000, 0), 940, Vector(1., 0., 0.));
+    // Sol
+    Sphere sDown(Vector(0, -1000, 0), 990, Vector(0., 0., 1.));
+    // Mur droit
+    Sphere sRight(Vector(1000, 0, 0), 940, Vector(1., 1., 1.));
+    // Mur gauche
+    Sphere sLeft(Vector(-1000, 0, 0), 940, Vector(1., 1., 1.));
 
     scene.add(s1);
     scene.add(s2);
     scene.add(s3);
-    // scene.add(sFront);
+    scene.add(sFront);
     scene.add(sBack);
     scene.add(sUp);
     scene.add(sDown);
+    scene.add(sRight);
+    scene.add(sLeft);
 
     std::vector<unsigned char> image(W * H * 3, 0); // Crée un tableau 1D de W*H*3 éléments initialisés à 0 (l'image)
 
@@ -268,7 +307,7 @@ int main()
             Vector u(j - W / 2 + 0.5, (H - i) - (H / 2) + 0.5, -W / (2 * tanfov2)); // On ajoute 0.5 pour être au centre des pixels plutôt que dans les coins
             u.normalize();
             Ray r(C, u); // Rayon issu de C dans la direction u
-            int rebonds = 5;
+            int rebonds = 20;
             Vector intensity = scene.getColor(r, rebonds);
 
             image[(i * W + j) * 3 + 0] = std::min(255., std::pow(intensity[0], 1 / 2.2)); // R - La puissance 1/2.2 correspond à la correction gamma
