@@ -19,6 +19,8 @@
 std::default_random_engine rng[NB_THREADS]; // On en crée 8 pour le calcul parallèle sur 8 threads
 std::uniform_real_distribution<double> uniform(0.0, 1.0);
 
+double epsilon = 0.01;
+
 // & : au lieu de passer en paramètre le vecteur soit 3 fois 64 bits, on passe une adresse qui est 1 fois 64 bits
 
 class Vector
@@ -239,7 +241,7 @@ public:
             if (this->liste_spheres[id_sphere].mirror)
             {
                 Vector uReflected = r.u - 2 * dot(r.u, n) * n;
-                Ray rReflected(P + (0.01 * n), uReflected);
+                Ray rReflected(P + (epsilon * n), uReflected);
                 return this->getColor(rReflected, rebond - 1);
             }
 
@@ -266,7 +268,7 @@ public:
                 if (normal_sqrt_term < 0) // Réflexion totale
                 {
                     Vector uReflected = r.u - 2 * dot(r.u, n) * n;
-                    Ray rReflected(P + (0.01 * n), uReflected);
+                    Ray rReflected(P + (epsilon * n), uReflected);
                     return this->getColor(rReflected, rebond - 1);
                 }
                 else
@@ -274,7 +276,7 @@ public:
                     Vector uRefractedN = -sqrt(normal_sqrt_term) * n;
                     Vector uRefractedT = (n1 / n2) * (r.u - dot_incident_normal * n);
                     Vector uRefracted = uRefractedN + uRefractedT;
-                    Ray rRefracted(P - (0.01 * n), uRefracted);
+                    Ray rRefracted(P - (epsilon * n), uRefracted);
                     return this->getColor(rRefracted, rebond - 1);
                 }
             }
@@ -294,7 +296,7 @@ public:
                 int visibility;
 
                 // ECLAIRAGE DIRECT
-                if (this->intersect(Ray(P + (0.01 * n), l), Plum, nlum, idlum, tlum) && tlum < distlum) // Calcul d'ombre portée
+                if (this->intersect(Ray(P + (epsilon * n), l), Plum, nlum, idlum, tlum) && tlum < distlum) // Calcul d'ombre portée
                 {
                     visibility = 0;
                 }
@@ -303,14 +305,12 @@ public:
                     visibility = 1;
                 }
 
-                color = visibility * this->liste_spheres[id_sphere].albedo * this->I * std::max(0., dot(l, n)) / (lnorm2 * 4 * M_PI); // clamp à 0 pour pas avoir une intensité négative
-                // std::cout << color[0] << std::endl;
+                color = visibility * this->liste_spheres[id_sphere].albedo * this->I * std::max(0., dot(l, n)) / (lnorm2 * 4 * M_PI * M_PI); // clamp à 0 pour pas avoir une intensité négative
+
                 // ECLAIRAGE INDIRECT
                 Vector omega_i = random_cos(n);
-                Ray rRandom(P + (0.01 * n), omega_i);
+                Ray rRandom(P + (epsilon * n), omega_i);
                 color = color + this->liste_spheres[id_sphere].albedo * this->getColor(rRandom, rebond - 1);
-                // std::cout << color[0] << std::endl;
-                //std::cout << " " << std::endl;
                 return color;
             }
         }
@@ -318,6 +318,18 @@ public:
         // PAS D'INTERSECTION : pixel noir
         return Vector(0., 0., 0.);
     }
+};
+
+// Génère deux nombres aléatoires suivant une loi normale centrée réduite à partir de deux nombres suivant une loi uniforme
+void box_muller(double &dx, double &dy)
+{
+    int thread_id = omp_get_thread_num();
+    double r1 = uniform(rng[thread_id]);
+    double r2 = uniform(rng[thread_id]);
+    double r = sqrt(-2 * log(r2));
+    double t = 2 * M_PI * r1;
+    dx = cos(t) * r;
+    dy = sin(t) * r;
 };
 
 int main()
@@ -329,8 +341,8 @@ int main()
     Vector L(-10, 20, 40);        // Source de lumière
     double fov = 60 * M_PI / 180; // Field of view 60°
     double tanfov2 = tan(fov / 2);
-    double I(5000000000);          // Intensité de la lumière
-    int nb_rays_monte_carlo = 128; // Nombre de rayons envoyés pour Monte Carlo
+    double I(10000000000);         // Intensité de la lumière
+    int nb_rays_monte_carlo = 512; // Nombre de rayons envoyés pour Monte Carlo
     int rebonds = 5;
     // int rayons_indirects = 5;
 
@@ -354,6 +366,8 @@ int main()
     Sphere sRight(Vector(1000, 0, 0), 940, Vector(1., 1., 1.));
     // Mur gauche
     Sphere sLeft(Vector(-1000, 0, 0), 940, Vector(1., 1., 1.));
+    // Sphere de lumiere
+    Sphere sLum(L, 10, Vector(0., 0., 0.));
 
     scene.add(s1);
     scene.add(s2);
@@ -364,6 +378,7 @@ int main()
     scene.add(sDown);
     scene.add(sRight);
     scene.add(sLeft);
+    //scene.add(sLum);
 
     auto start = std::chrono::high_resolution_clock::now();
     std::vector<unsigned char> image(W * H * 3, 0); // Crée un tableau 1D de W*H*3 éléments initialisés à 0 (l'image)
@@ -375,7 +390,12 @@ int main()
             Vector intensity;
             for (int k = 0; k < nb_rays_monte_carlo; k++)
             {
-                Vector u(j - W / 2 + 0.5, (H - i) - (H / 2) + 0.5, -W / (2 * tanfov2)); // On ajoute 0.5 pour être au centre des pixels plutôt que dans les coins
+                //Antialiasing : Plutôt que d'envoyer le rayon pile au centre des pixels, on l'envoie aléatoirement dans le pixel
+                double x = 0.0;
+                double y = 0.0;
+                box_muller(x, y);
+
+                Vector u(j - W / 2 + 0.5 + x, (H - i) - (H / 2) + 0.5 + y, -W / (2 * tanfov2)); // On ajoute 0.5 pour être au centre des pixels plutôt que dans les coins
                 u.normalize();
                 Ray r(C, u); // Rayon issu de C dans la direction u
                 intensity = intensity + scene.getColor(r, rebonds);
