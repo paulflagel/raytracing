@@ -10,6 +10,14 @@
 #include <algorithm>
 #include <iostream>
 #include <cmath>
+#include <random>
+#include <chrono>
+#include "omp.h"
+
+#define NB_THREADS 8
+
+std::default_random_engine rng[NB_THREADS]; // On en crée 8 pour le calcul parallèle sur 8 threads
+std::uniform_real_distribution<double> uniform(0.0, 1.0);
 
 // & : au lieu de passer en paramètre le vecteur soit 3 fois 64 bits, on passe une adresse qui est 1 fois 64 bits
 
@@ -70,6 +78,10 @@ double dot(const Vector &a, const Vector &b)
 Vector cross(const Vector &a, const Vector &b)
 {
     return Vector(a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]);
+}
+Vector operator*(const Vector &a, const Vector &b) // Produit terme à terme
+{
+    return Vector(a[0] * b[0], a[1] * b[1], a[2] * b[2]);
 }
 
 class Ray
@@ -137,6 +149,37 @@ public:
     double refraction_index;
 };
 
+Vector random_cos(Vector &N) // Retourne omega_i
+{
+    int thread_id = omp_get_thread_num();
+
+    double r1 = uniform(rng[thread_id]);
+    double r2 = uniform(rng[thread_id]);
+    double s = sqrt(1 - r2); // Pour éviter de calculer 2 fois la racine
+
+    double x = cos(2 * M_PI * r1) * s;
+    double y = sin(2 * M_PI * r1) * s;
+    double z = sqrt(r2);
+
+    Vector T1;
+
+    if ((N[2] < N[0]) && (N[2] < N[1])) // Nz plus petit
+    {
+        T1 = Vector(-N[1], N[0], 0.);
+    }
+    else if ((N[1] < N[0]) && (N[1] < N[2])) // Ny plus petit
+    {
+        T1 = Vector(N[2], 0., -N[0]);
+    }
+    else // Nx plus petit
+    {
+        T1 = Vector(0., N[2], -N[1]);
+    }
+    T1.normalize();
+    Vector T2 = cross(N, T1);
+    return x * T1 + y * T2 + z * N;
+}
+
 class Scene
 {
 public:
@@ -148,14 +191,14 @@ public:
 
     std::vector<Sphere> liste_spheres;
     double I; // Intensité de la lumière
-    Vector L; //Position de la lumière
+    Vector L; // Position de la lumière
 
-    void add(Sphere &s) { liste_spheres.push_back(s); } //Ajoute la sphere à la fin de la liste
+    void add(Sphere &s) { liste_spheres.push_back(s); } // Ajoute la sphere à la fin de la liste
 
-    bool intersect(const Ray &r, Vector &P, Vector &N, int &sphere_id, double &distance_min)
+    bool intersect(const Ray &r, Vector &P, Vector &N, int &sphere_id, double &distance_min) // Check si une sphère est intersectée, si oui renvoie la plus proche
     {
         distance_min = 1e99;
-        bool scene_intersection = false; // est-ce que la scène possède au moins une intersection
+        bool scene_intersection = false; // Est-ce que la scène possède au moins une intersection
         for (int k = 0; k < liste_spheres.size(); k++)
         {
             Vector Psphere, Nsphere;
@@ -177,41 +220,31 @@ public:
         return scene_intersection;
     }
 
-    Vector getColor(Ray &r, int rebond)
+    Vector getColor(Ray &r, int rebond) // Renvoie l'intensité du pixel
     {
+        Vector color; // Intensité de la lumière
+
         if (rebond <= 0) // Condition de fin de récursion
         {
-            return Vector(60000., 0., 0.);
+            return Vector(0., 0., 0.);
         }
+
         Vector P, n;   // Point d'intersection rayon/sphère et vecteur normal à la surface en P
         int id_sphere; // Id de la sphère intersectée
         double t;      // distance entre la caméra et l'intersection
 
         if (this->intersect(r, P, n, id_sphere, t))
         {
-            if (!this->liste_spheres[id_sphere].mirror && !this->liste_spheres[id_sphere].transp) // Si la surface est diffuse (pas miroir)
+            //  SURFACE MIROIR :
+            if (this->liste_spheres[id_sphere].mirror)
             {
-                Vector l = this->L - P;        // vecteur unitaire en P dirigé vers la source de lumière
-                double lnorm2 = l.norm2();     // norme 2 de l
-                double distlum = sqrt(lnorm2); // distance entre la lumière L et le point d'intersection de la boule P
-                l.normalize();                 // on transforme l en vecteur unitaire
-                Vector rho = this->liste_spheres[id_sphere].albedo;
-
-                // Grandeurs calculées pour l'ombre portée
-                Vector Plum, nlum;
-                double tlum;
-                int idlum;
-
-                if (this->intersect(Ray(P + (0.01 * n), l), Plum, nlum, idlum, tlum) && tlum < distlum) // Calcul d'ombre portée
-                {
-                    return Vector(0., 0., 0.);
-                }
-                else // Pas d'ombre portée, on fait le calcul normal de couleur
-                {
-                    return rho * this->I * std::max(0., dot(l, n)) / (lnorm2 * 4 * M_PI); // clamp à 0 pour pas avoir une intensité négative
-                }
+                Vector uReflected = r.u - 2 * dot(r.u, n) * n;
+                Ray rReflected(P + (0.01 * n), uReflected);
+                return this->getColor(rReflected, rebond - 1);
             }
-            else if (this->liste_spheres[id_sphere].transp) // surface transparente
+
+            // SURFACE TRANSPARENTE :
+            else if (this->liste_spheres[id_sphere].transp)
             {
                 double dot_incident_normal = dot(r.u, n);
                 double n1, n2;
@@ -225,6 +258,7 @@ public:
                     n1 = this->liste_spheres[id_sphere].refraction_index;
                     n2 = 1.0;
                     n = -1 * n;
+                    dot_incident_normal = -dot_incident_normal;
                 }
 
                 double normal_sqrt_term = 1 - (n1 / n2) * (n1 / n2) * (1 - dot_incident_normal * dot_incident_normal);
@@ -244,13 +278,44 @@ public:
                     return this->getColor(rRefracted, rebond - 1);
                 }
             }
-            else // surface miroir : on appelle la méthode récursivement
+
+            // SURFACE DIFFUSE :
+            else
             {
-                Vector uReflected = r.u - 2 * dot(r.u, n) * n;
-                Ray rReflected(P + (0.01 * n), uReflected);
-                return this->getColor(rReflected, rebond - 1);
+                Vector l = this->L - P;        // vecteur unitaire en P dirigé vers la source de lumière
+                double lnorm2 = l.norm2();     // norme 2 de l
+                double distlum = sqrt(lnorm2); // distance entre la lumière L et le point d'intersection de la boule P
+                l.normalize();                 // on transforme l en vecteur unitaire
+
+                // Grandeurs calculées pour l'ombre portée
+                Vector Plum, nlum;
+                double tlum;
+                int idlum;
+                int visibility;
+
+                // ECLAIRAGE DIRECT
+                if (this->intersect(Ray(P + (0.01 * n), l), Plum, nlum, idlum, tlum) && tlum < distlum) // Calcul d'ombre portée
+                {
+                    visibility = 0;
+                }
+                else // Pas d'ombre portée, on fait le calcul normal de couleur
+                {
+                    visibility = 1;
+                }
+
+                color = visibility * this->liste_spheres[id_sphere].albedo * this->I * std::max(0., dot(l, n)) / (lnorm2 * 4 * M_PI); // clamp à 0 pour pas avoir une intensité négative
+                // std::cout << color[0] << std::endl;
+                // ECLAIRAGE INDIRECT
+                Vector omega_i = random_cos(n);
+                Ray rRandom(P + (0.01 * n), omega_i);
+                color = color + this->liste_spheres[id_sphere].albedo * this->getColor(rRandom, rebond - 1);
+                // std::cout << color[0] << std::endl;
+                //std::cout << " " << std::endl;
+                return color;
             }
         }
+
+        // PAS D'INTERSECTION : pixel noir
         return Vector(0., 0., 0.);
     }
 };
@@ -264,17 +329,19 @@ int main()
     Vector L(-10, 20, 40);        // Source de lumière
     double fov = 60 * M_PI / 180; // Field of view 60°
     double tanfov2 = tan(fov / 2);
-    double I = 5000000000; // Intensité de la lumière
-    bool mirror = true;
+    double I(5000000000);          // Intensité de la lumière
+    int nb_rays_monte_carlo = 128; // Nombre de rayons envoyés pour Monte Carlo
+    int rebonds = 5;
+    // int rayons_indirects = 5;
 
     Scene scene(I, L);
 
     // Sphere 1 à l'origine, de rayon 10
-    Sphere s1(Vector(0, 0, 0), 10, Vector(0.4, 0.1, 0.), false, true);
+    Sphere s1(Vector(0, 0, 0), 10, Vector(0.4, 0.1, 0.), false, false);
     // Sphere 2
-    Sphere s2(Vector(-20, 15, -20), 5, Vector(0.3, 0., 0.3), true);
+    Sphere s2(Vector(-20, 15, -20), 5, Vector(0.3, 0., 0.3), false, false);
     // Sphere 3
-    Sphere s3(Vector(20, -2, 5), 3, Vector(0.3, 0.3, 0.1), true);
+    Sphere s3(Vector(20, -2, 5), 3, Vector(0.3, 0.3, 0.1), false, false);
     // Sphère derrière la boule
     Sphere sBack(Vector(0, 0, -1000), 940, Vector(0., 1., 0.));
     // Sphère derrière la caméra
@@ -298,17 +365,22 @@ int main()
     scene.add(sRight);
     scene.add(sLeft);
 
+    auto start = std::chrono::high_resolution_clock::now();
     std::vector<unsigned char> image(W * H * 3, 0); // Crée un tableau 1D de W*H*3 éléments initialisés à 0 (l'image)
-
+#pragma omp parallel for                            // Parallélisation du calcul, mettre un flag openmp à gcc. Ici on fait sur toutes les lignes de l'image
     for (int i = 0; i < H; i++)
     {
         for (int j = 0; j < W; j++)
         {
-            Vector u(j - W / 2 + 0.5, (H - i) - (H / 2) + 0.5, -W / (2 * tanfov2)); // On ajoute 0.5 pour être au centre des pixels plutôt que dans les coins
-            u.normalize();
-            Ray r(C, u); // Rayon issu de C dans la direction u
-            int rebonds = 20;
-            Vector intensity = scene.getColor(r, rebonds);
+            Vector intensity;
+            for (int k = 0; k < nb_rays_monte_carlo; k++)
+            {
+                Vector u(j - W / 2 + 0.5, (H - i) - (H / 2) + 0.5, -W / (2 * tanfov2)); // On ajoute 0.5 pour être au centre des pixels plutôt que dans les coins
+                u.normalize();
+                Ray r(C, u); // Rayon issu de C dans la direction u
+                intensity = intensity + scene.getColor(r, rebonds);
+            }
+            intensity = intensity / nb_rays_monte_carlo;
 
             image[(i * W + j) * 3 + 0] = std::min(255., std::pow(intensity[0], 1 / 2.2)); // R - La puissance 1/2.2 correspond à la correction gamma
             image[(i * W + j) * 3 + 1] = std::min(255., std::pow(intensity[1], 1 / 2.2)); // G
@@ -316,6 +388,10 @@ int main()
         }
     }
     stbi_write_png("image.png", W, H, 3, &image[0], 0);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto diff = end - start;
+    auto diff_sec = std::chrono::duration_cast<std::chrono::seconds>(diff);
+    std::cout << "Run time : " << diff_sec.count() << "s" << std::endl;
 
     return 0;
 }

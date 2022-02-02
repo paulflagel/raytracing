@@ -3,3 +3,6 @@ main
 .vscode
 .DS_Store
 /images
+legacy/
+CMakeLists.txt
+*.py
