@@ -61,6 +61,10 @@ Vector operator-(const Vector &a, const Vector &b)
 {
     return Vector(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 }
+Vector operator-(const Vector &a)
+{
+    return Vector(-1 * a[0], -1 * a[1], -1 * a[2]);
+}
 Vector operator*(const double a, const Vector &b)
 {
     return Vector(a * b[0], a * b[1], a * b[2]);
@@ -186,15 +190,14 @@ Vector random_cos(Vector &N) // Retourne omega_i
 class Scene
 {
 public:
-    Scene(double I, Vector &L)
+    Scene(double I)
     {
         this->I = I;
-        this->L = L;
     }
 
     std::vector<Sphere> liste_spheres;
     double I; // Intensité de la lumière
-    Vector L; // Position de la lumière
+    Sphere *Light;
 
     void add(Sphere &s) { liste_spheres.push_back(s); } // Ajoute la sphere à la fin de la liste
 
@@ -225,8 +228,6 @@ public:
 
     Vector getColor(Ray &r, int rebond) // Renvoie l'intensité du pixel
     {
-        Vector color; // Intensité de la lumière
-
         if (rebond <= 0) // Condition de fin de récursion
         {
             return Vector(0., 0., 0.);
@@ -238,14 +239,10 @@ public:
 
         if (this->intersect(r, P, n, id_sphere, t))
         {
-            // Sphère de lumière
-            if (this->liste_spheres[id_sphere].isLight)
-            {
-                return this->liste_spheres[id_sphere].albedo * this->I / (4 * M_PI * this->liste_spheres[id_sphere].R * this->liste_spheres[id_sphere].R);
-            }
+            Sphere sCurrent = this->liste_spheres[id_sphere]; // Sphere intersectée
 
             //  SURFACE MIROIR :
-            if (this->liste_spheres[id_sphere].isMirror)
+            if (sCurrent.isMirror)
             {
                 Vector uReflected = r.u - 2 * dot(r.u, n) * n;
                 Ray rReflected(P + (epsilon * n), uReflected);
@@ -253,20 +250,20 @@ public:
             }
 
             // SURFACE TRANSPARENTE :
-            else if (this->liste_spheres[id_sphere].isTransp)
+            else if (sCurrent.isTransp)
             {
                 double dot_incident_normal = dot(r.u, n);
                 double n1, n2;
                 if (dot_incident_normal < 0)
                 {
                     n1 = 1.0;
-                    n2 = this->liste_spheres[id_sphere].refraction_index;
+                    n2 = sCurrent.refraction_index;
                 }
                 else
                 {
-                    n1 = this->liste_spheres[id_sphere].refraction_index;
+                    n1 = sCurrent.refraction_index;
                     n2 = 1.0;
-                    n = -1 * n;
+                    n = -n;
                     dot_incident_normal = -dot_incident_normal;
                 }
 
@@ -291,39 +288,41 @@ public:
             // SURFACE DIFFUSE :
             else
             {
-                Vector l = this->L - P;        // vecteur unitaire en P dirigé vers la source de lumière
-                double lnorm2 = l.norm2();     // norme 2 de l
-                double distlum = sqrt(lnorm2); // distance entre la lumière L et le point d'intersection de la boule P
-                l.normalize();                 // on transforme l en vecteur unitaire
+                Vector color; // Intensité de la lumière
+
+                // ECLAIRAGE DIRECT
+                Vector v = P - this->Light->O;
+                v.normalize();
+                Vector omega_random = random_cos(v);
+                omega_random.normalize();                                         // Direction aléatoire sur l'hémisphère de sLum
+                Vector x_random = omega_random * this->Light->R + this->Light->O; // Point à la surface de sLum issu de la direction aléatoire
+                Vector omega_i = (x_random - P);
+                omega_i.normalize();
+                double distlum2 = (x_random - P).norm2();
 
                 // Grandeurs calculées pour l'ombre portée
                 Vector Plum, nlum;
                 double tlum;
                 int idlum;
-                int visibility = 1; // Pas d'ombre portée
-                                    /*
-                // ECLAIRAGE DIRECT
 
-                // Calcul d'ombre portée
-                if (this->intersect(Ray(P + (epsilon * n), l), Plum, nlum, idlum, tlum) && tlum < distlum)
+                // Calcul d'ombre portée : on regarde s'il y a un obstacle entre le point et la lumière
+                if (this->intersect(Ray(P + (epsilon * n), omega_i), Plum, nlum, idlum, tlum) && tlum * tlum < distlum2 * 0.99)
                 {
-                    visibility = 0;
+                    //Ombre portée
+                    color = Vector(0., 0., 0.);
+                }
+                else
+                {
+                    double pdf = std::max(0., dot(v, omega_random)) / M_PI / (this->Light->R * this->Light->R);
+                    Vector BRDF = sCurrent.albedo / M_PI;
+                    double jacobien = std::max(0., dot(-omega_i, omega_random)) / distlum2;
+                    color = this->I / (4 * M_PI * this->Light->R * this->Light->R * M_PI) * std::max(0., dot(n, omega_i)) * BRDF * jacobien / pdf;
                 }
 
-                // // Soft shadows
-                // Vector V = -1 * l;
-                // Vector omega = random_cos(V);
-                // Vector xprime = omega * this->liste_spheres[0].R + L;
-                // Vector nprime = (xprime - L) / (xprime - L).norm();
-                // double pdf = dot(l, omega) / (M_PI * this->liste_spheres[0].R * this->liste_spheres[0].R);
-                // double jacobien = M_PI * std::max(0., dot(omega, n)) * std::max(0., dot(-1 * omega, nprime)) / ((xprime - P).norm2() * std::max(0., dot(V, nprime)));
-
-                color = 1 * visibility * this->liste_spheres[id_sphere].albedo * this->I * std::max(0., dot(l, n)) / (lnorm2 * 4 * M_PI * M_PI); // clamp à 0 pour pas avoir une intensité négative
-*/
                 // ECLAIRAGE INDIRECT
-                Vector omega_i = random_cos(n);
-                Ray rRandom(P + (epsilon * n), omega_i);
-                color = color + this->liste_spheres[id_sphere].albedo * this->getColor(rRandom, rebond - 1);
+                Vector random_u = random_cos(n);
+                Ray rRandom(P + (epsilon * n), random_u);
+                color = color + sCurrent.albedo * this->getColor(rRandom, rebond - 1);
                 return color;
             }
         }
@@ -355,11 +354,11 @@ int main()
     Vector L(-10, 20, 40);        // Source de lumière
     double fov = 60 * M_PI / 180; // Field of view 60°
     double tanfov2 = tan(fov / 2);
-    double I(10000000000);        // Intensité de la lumière
-    int nb_rays_monte_carlo = 64; // Nombre de rayons envoyés pour Monte Carlo
+    double I(5E10);               // Intensité de la lumière (en Watts)
+    int nb_rays_monte_carlo = 64; // Nombre de rayons envoyés pour Monte Carlo (error decreases in 1/sqrt(N))
     int rebonds = 5;
 
-    Scene scene(I, L);
+    Scene scene(I);
 
     // Sphere 1 à l'origine, de rayon 10
     Sphere s1(Vector(0, 0, 0), 10, Vector(0.4, 0.1, 0.), false, false);
@@ -379,8 +378,9 @@ int main()
     Sphere sLeft(Vector(-1000, 0, 0), 940, Vector(0.5, 0.5, 0.5));
 
     // Sphere de lumiere
-    Sphere sLum(L, 10, Vector(1., 1., 1.), false, false, true);
+    Sphere sLum(L, 5, Vector(1., 1., 1.), false, false, true);
     scene.add(sLum);
+    scene.Light = &sLum;
 
     scene.add(s1);
     scene.add(s2);
