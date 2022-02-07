@@ -1,14 +1,13 @@
 # Raytracing
 
-## 1. Génération d'une boule simple
+Clone this repo and then :
 
-![](./img/1.png)
+```
+cd raytracing
+make
+./raytracer
+```
 
+This will generate a file called `image.png`.
 
-## 2. Ajout d'un modèle d'éclairage lambertien
-
-![](./img/2.png)
-
-## 3. Scène contenant plusieurs objets
-
-![](./img/scene.png)
+To clean everything : `make clean`
