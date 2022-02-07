@@ -333,16 +333,16 @@ public:
 };
 
 // Génère deux nombres aléatoires suivant une loi normale centrée réduite à partir de deux nombres suivant une loi uniforme
-const float sigma_bm = 0.3; // Std deviation of the normal distribution (Box Muller)
-void box_muller(double &dx, double &dy)
+Vector box_muller(float sigma = 1.)
 {
     int thread_id = omp_get_thread_num();
     double r1 = uniform(rng[thread_id]);
     double r2 = uniform(rng[thread_id]);
     double r = sqrt(-2 * log(r2));
     double t = 2 * M_PI * r1;
-    dx = cos(t) * r * sigma_bm;
-    dy = sin(t) * r * sigma_bm;
+    double dx = cos(t) * r * sigma;
+    double dy = sin(t) * r * sigma;
+    return Vector(dx, dy, 0.);
 };
 
 int main()
@@ -354,9 +354,10 @@ int main()
     Vector L(-10, 20, 40);        // Source de lumière
     double fov = 60 * M_PI / 180; // Field of view 60°
     double tanfov2 = tan(fov / 2);
-    double I(5E10);               // Intensité de la lumière (en Watts)
-    int nb_rays_monte_carlo = 64; // Nombre de rayons envoyés pour Monte Carlo (error decreases in 1/sqrt(N))
+    double I(5E10);                // Intensité de la lumière (en Watts)
+    int nb_rays_monte_carlo = 256; // Nombre de rayons envoyés pour Monte Carlo (error decreases in 1/sqrt(N))
     int rebonds = 5;
+    double ddof = 55;
 
     Scene scene(I);
 
@@ -364,6 +365,8 @@ int main()
     Sphere s1(Vector(0, 0, 0), 10, Vector(0.4, 0.1, 0.), false, false);
     // Sphere 2
     Sphere s2(Vector(-25, 20, -35), 10, Vector(0.4, 0.4, 0.4), false, false);
+    // Sphere 3
+    Sphere s3(Vector(10, -5, 25), 5, Vector(0.1, 0., 0.5), false, false);
     // Sphère derrière la boule
     Sphere sBack(Vector(0, 0, -1000), 940, Vector(0., 0.5, 0.));
     // Sphère derrière la caméra
@@ -384,6 +387,7 @@ int main()
 
     scene.add(s1);
     scene.add(s2);
+    scene.add(s3);
     scene.add(sFront);
     scene.add(sBack);
     scene.add(sUp);
@@ -401,14 +405,18 @@ int main()
             Vector intensity;
             for (int k = 0; k < nb_rays_monte_carlo; k++)
             {
-                //Antialiasing : Plutôt que d'envoyer le rayon pile au centre des pixels, on l'envoie aléatoirement dans le pixel
-                double dx = 0.0;
-                double dy = 0.0;
-                box_muller(dx, dy);
-
-                Vector u(j - W / 2 + 0.5 + dx, (H - i) - (H / 2) + 0.5 + dy, -W / (2 * tanfov2)); // On ajoute 0.5 pour être au centre des pixels plutôt que dans les coins
+                // Antialiasing : Plutôt que d'envoyer le rayon pile au centre des pixels, on l'envoie aléatoirement dans le pixel
+                Vector dPixel = box_muller(0.3);
+                Vector u(j - W / 2 + 0.5 + dPixel[0], (H - i) - (H / 2) + 0.5 + dPixel[1], -W / (2 * tanfov2)); // On ajoute 0.5 pour être au centre des pixels plutôt que dans les coins
                 u.normalize();
-                Ray r(C, u); // Rayon issu de C dans la direction u
+
+                // Profondeur de champ
+                Vector dAperture = box_muller();
+                Vector Cprime = C + dAperture;
+                Vector uprime = C + ddof / abs(u[2]) * u - Cprime;
+                uprime.normalize();
+
+                Ray r(Cprime, uprime); // Rayon issu de C dans la direction u
                 intensity = intensity + scene.getColor(r, rebonds);
             }
             intensity = intensity / nb_rays_monte_carlo;
