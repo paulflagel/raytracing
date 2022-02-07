@@ -3,10 +3,10 @@ CFLAGS = -fopenmp -g -fdiagnostics-color=always # Flags to pass
 
 
 output: main.o
-	$(CXX) main.o -o raytracer $(CFLAGS)
+	$(CXX) main.o -o main $(CFLAGS)
 
 main.o: main.cpp
 	$(CXX) -c main.cpp
 
 clean:
-	rm *.o raytracer
+	rm *.o main
