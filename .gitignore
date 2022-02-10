@@ -6,3 +6,5 @@ main
 legacy/
 CMakeLists.txt
 *.py
+latex/
+image.png
