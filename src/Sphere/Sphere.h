@@ -16,6 +16,7 @@ public:
     double R;
 
     // Already defined in Object !
+
     // Vector O;
     // Vector albedo;
     // bool isMirror, isTransp;
