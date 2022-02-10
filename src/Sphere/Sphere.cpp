@@ -1,20 +1,19 @@
 #include "Sphere.h"
 #include <cmath>
 
-Sphere::Sphere(const Vector &origin, double radius, const Vector &albedo, bool isMirror, bool isTransp, bool isLight, double refraction_index)
+Sphere::Sphere(const Vector &origin, double radius, const Vector &albedo, bool isMirror, bool isTransp, double refraction_index)
 {
     this->O = origin;
     this->R = radius;
     this->albedo = albedo;
     this->isMirror = isMirror;
     this->isTransp = isTransp;
-    this->isLight = isLight;
     this->refraction_index = refraction_index;
 }
 
 Sphere::~Sphere() {}
 
-bool Sphere::intersect(const Ray &r, Vector &P, Vector &N, double &t) // Tester si la sphère est sur la trajectoire
+bool Sphere::intersect(const Ray &r, Vector &P, Vector &N, double &t) const // Tester si la sphère est sur la trajectoire
 {
     //On résoud l'équation du second degré a*T^2 + b*t + c = 0
     double a = 1;

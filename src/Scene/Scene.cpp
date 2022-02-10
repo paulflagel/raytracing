@@ -2,6 +2,7 @@
 #include <cmath>
 #include <random>
 #include "omp.h"
+#include <iostream>
 
 #define EPSILON 0.01
 
@@ -12,18 +13,18 @@ Scene::Scene(double I)
 
 Scene::~Scene() {}
 
-void Scene::add(Sphere &s) { liste_spheres.push_back(s); } // Ajoute la sphere à la fin de la liste
+void Scene::add(Object *obj) { objects_list.push_back(obj); } // Ajoute la sphere à la fin de la liste
 
 bool Scene::intersect(const Ray &r, Vector &P, Vector &N, int &sphere_id, double &distance_min) // Check si une sphère est intersectée, si oui renvoie la plus proche
 {
     distance_min = 1E99;
     bool scene_intersection = false; // Est-ce que la scène possède au moins une intersection
-    for (int k = 0; k < liste_spheres.size(); k++)
+    for (int k = 0; k < objects_list.size(); k++)
     {
         Vector Psphere, Nsphere;
         double local_distance;
 
-        bool local_intersection = liste_spheres[k].intersect(r, Psphere, Nsphere, local_distance);
+        bool local_intersection = objects_list[k]->intersect(r, Psphere, Nsphere, local_distance);
         if (local_intersection)
         {
             scene_intersection = true;
@@ -52,10 +53,11 @@ Vector Scene::getColor(Ray &r, int rebond) // Renvoie l'intensité du pixel
 
     if (this->intersect(r, P, n, id_sphere, t))
     {
-        Sphere sCurrent = this->liste_spheres[id_sphere]; // Sphere intersectée
+        Object *oCurrent = objects_list[id_sphere]; // Sphere intersectée
+        // std::cout << oCurrent->isMirror << std::endl;
 
         //  SURFACE MIROIR :
-        if (sCurrent.isMirror)
+        if (oCurrent->isMirror)
         {
             Vector uReflected = r.u - 2 * dot(r.u, n) * n;
             Ray rReflected(P + (EPSILON * n), uReflected);
@@ -63,18 +65,18 @@ Vector Scene::getColor(Ray &r, int rebond) // Renvoie l'intensité du pixel
         }
 
         // SURFACE TRANSPARENTE :
-        else if (sCurrent.isTransp)
+        else if (oCurrent->isTransp)
         {
             double dot_incident_normal = dot(r.u, n);
             double n1, n2;
             if (dot_incident_normal < 0)
             {
                 n1 = 1.0;
-                n2 = sCurrent.refraction_index;
+                n2 = oCurrent->refraction_index;
             }
             else
             {
-                n1 = sCurrent.refraction_index;
+                n1 = oCurrent->refraction_index;
                 n2 = 1.0;
                 n = -n;
                 dot_incident_normal = -dot_incident_normal;
@@ -127,7 +129,7 @@ Vector Scene::getColor(Ray &r, int rebond) // Renvoie l'intensité du pixel
             else
             {
                 double pdf = std::max(0., dot(v, omega_random)) / M_PI / (this->Light->R * this->Light->R);
-                Vector BRDF = sCurrent.albedo / M_PI;
+                Vector BRDF = oCurrent->albedo / M_PI;
                 double jacobien = std::max(0., dot(-omega_i, omega_random)) / distlum2;
                 color = this->I / (4 * M_PI * this->Light->R * this->Light->R * M_PI) * std::max(0., dot(n, omega_i)) * BRDF * jacobien / pdf;
             }
@@ -135,7 +137,7 @@ Vector Scene::getColor(Ray &r, int rebond) // Renvoie l'intensité du pixel
             // ECLAIRAGE INDIRECT
             Vector random_u = randh::random_cos(n);
             Ray rRandom(P + (EPSILON * n), random_u);
-            color = color + sCurrent.albedo * this->getColor(rRandom, rebond - 1);
+            color = color + oCurrent->albedo * this->getColor(rRandom, rebond - 1);
             return color;
         }
     }

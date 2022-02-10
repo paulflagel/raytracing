@@ -17,11 +17,12 @@
 #include "Sphere/Sphere.h"
 #include "Scene/Scene.h"
 #include "RandomHelper/RandomHelper.h"
+#include "Object/Object.h"
 
 // #define INDIRECT_LIGHT true
-#define NUM_RAYS_MC 1
-#define ANTIALIASING true
-#define DEPTH_OF_FIELD true
+#define NUM_RAYS_MC 32
+// #define ANTIALIASING true
+// #define DEPTH_OF_FIELD false
 #define DDOF 55
 
 int main(int argc, char *argv[])
@@ -51,18 +52,18 @@ int main(int argc, char *argv[])
     Sphere sLeft(Vector(-1000, 0, 0), 940, Vector(0.5, 0.5, 0.5)); // Mur gauche
 
     Sphere sLum(L, 5, Vector(1., 1., 1.), false, false, true); // Sphere de lumiere
-    scene.add(sLum);
+    scene.add(&sLum);
     scene.Light = &sLum;
 
-    scene.add(s1);
-    scene.add(s2);
-    scene.add(s3);
-    scene.add(sFront);
-    scene.add(sBack);
-    scene.add(sUp);
-    scene.add(sDown);
-    scene.add(sRight);
-    scene.add(sLeft);
+    scene.add(&s1);
+    scene.add(&s2);
+    scene.add(&s3);
+    scene.add(&sFront);
+    scene.add(&sBack);
+    scene.add(&sUp);
+    scene.add(&sDown);
+    scene.add(&sRight);
+    scene.add(&sLeft);
 
     auto start = std::chrono::high_resolution_clock::now();
     std::vector<unsigned char> image(W * H * 3, 0); // Crée un tableau 1D de W*H*3 éléments initialisés à 0 (l'image)
@@ -74,25 +75,17 @@ int main(int argc, char *argv[])
             Vector intensity;
             for (int k = 0; k < nb_rays_monte_carlo; k++)
             {
-                Vector dPixel;
-                // Antialiasing : Plutôt que d'envoyer le rayon pile au centre des pixels, on l'envoie aléatoirement dans le pixel
-                if (ANTIALIASING)
-                {
-                    Vector dPixel = randh::box_muller(0.3);
-                }
+                Vector dPixel = randh::box_muller(0.3);
                 Vector u(j - W / 2 + 0.5 + dPixel[0], (H - i) - (H / 2) + 0.5 + dPixel[1], -W / (2 * tanfov2));
                 u.normalize();
                 Ray r(C, u);
 
                 // Profondeur de champ
-                if (DDOF)
-                {
-                    Vector dAperture = randh::box_muller();
-                    Vector Cprime = C + dAperture;
-                    Vector uprime = C + ddof / abs(u[2]) * u - Cprime;
-                    uprime.normalize();
-                    r = Ray(Cprime, uprime); // Rayon issu de C dans la direction u
-                }
+                Vector dAperture = randh::box_muller(1.);
+                Vector Cprime = C + dAperture;
+                Vector uprime = C + ddof / abs(u[2]) * u - Cprime;
+                uprime.normalize();
+                r = Ray(Cprime, uprime); // Rayon issu de C dans la direction u
 
                 intensity = intensity + scene.getColor(r, rebonds);
             }
@@ -104,7 +97,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    stbi_write_png("output/image.png", W, H, 3, &image[0], 0);
+    stbi_write_png("image.png", W, H, 3, &image[0], 0);
     auto end = std::chrono::high_resolution_clock::now();
     auto diff = end - start;
     auto diff_sec = std::chrono::duration_cast<std::chrono::seconds>(diff);
