@@ -1,5 +1,6 @@
 # Raytracing
 
+## Getting started
 Clone this repo and
 
 ```
@@ -23,8 +24,8 @@ To clean everything :
 make clean
 ```
 
-### Troubleshooting
-- If the compiler `g++-11` isn't suppported on your machine, change it in the makefile.
-- Depending on your machine's specs, the number of threads used for parallelization may vary (8 here). I had to hardcode it in `src/RandomHelper/RandomHelper.c++` to create a thread-safe helper function. You can also change it.
+## Troubleshooting
+- If the compiler `g++-11` isn't suppported on your machine, change it in the makefile .
+- Depending on your machine's specs, the number of threads used for parallelization may vary (8 here). I had to hardcode it in `src/RandomHelper/RandomHelper.cpp` to create a thread-safe helper function. You can also change it.
 
-Else, open an issue.
+Else, open an issue !
