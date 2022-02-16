@@ -20,10 +20,10 @@
 #include "Object/Object.h"
 #include "Triangle/Triangle.h"
 
-#define INDIRECT_LIGHT true
-#define SOFT_SHADOWS true
-#define NUM_RAYS_MC 32
-#define ANTIALIASING true
+#define INDIRECT_LIGHT false
+#define SOFT_SHADOWS false
+#define NUM_RAYS_MC 128
+#define ANTIALIASING false
 #define DEPTH_OF_FIELD false
 #define DDOF 55
 
@@ -50,11 +50,11 @@ int main(int argc, char *argv[])
     scene.soft_shadows = SOFT_SHADOWS;
     scene.max_rebonds = rebonds;
 
-    Sphere s1(Vector(0, 0, 0), 10, Vector(0.4, 0.1, 0.), false, false);
+    // Sphere s1(Vector(0, 0, 0), 10, Vector(0.4, 0.1, 0.), false, false);
     // Sphere s2(Vector(-25, 20, -35), 10, Vector(0.4, 0.4, 0.4), false, false);
     // Sphere s3(Vector(10, -5, 25), 5, Vector(0.1, 0., 0.5), false, false);
 
-    TriangleMesh tri(Vector(0.5, 0.5, 0.5), false, false);
+    TriangleMesh tri(Vector(0.4, 0.1, 0.1), false, false);
     tri.readOBJ("triangle.obj");
 
     Sphere sBack(Vector(0, 0, -1000), 940, Vector(0., 0.5, 0.));   // Sphère derrière la boule
@@ -68,11 +68,11 @@ int main(int argc, char *argv[])
     scene.add(&sLum);
     scene.Light = &sLum;
 
-    scene.add(&s1);
+    // scene.add(&s1);
     // scene.add(&s2);
     // scene.add(&s3);
 
-    // scene.add(&tri);
+    scene.add(&tri);
 
     scene.add(&sFront);
     scene.add(&sBack);
@@ -121,8 +121,8 @@ int main(int argc, char *argv[])
     stbi_write_png("image.png", W, H, 3, &image[0], 0);
     auto end = std::chrono::high_resolution_clock::now();
     auto diff = end - start;
-    auto diff_sec = std::chrono::duration_cast<std::chrono::seconds>(diff);
-    std::cout << "Run time : " << diff_sec.count() << "s" << std::endl;
+    auto diff_sec = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
+    std::cout << "Run time : " << diff_sec.count() << "ms (" << diff_sec.count() / 1000. << "s)" << std::endl;
 
     return 0;
 }
