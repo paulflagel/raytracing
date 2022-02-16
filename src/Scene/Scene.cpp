@@ -21,18 +21,18 @@ bool Scene::intersect(const Ray &r, Vector &P, Vector &N, int &sphere_id, double
     bool scene_intersection = false; // Est-ce que la scène possède au moins une intersection
     for (int k = 0; k < objects_list.size(); k++)
     {
-        Vector Psphere, Nsphere;
+        Vector Pobject, Nobject;
         double local_distance;
 
-        bool local_intersection = objects_list[k]->intersect(r, Psphere, Nsphere, local_distance);
+        bool local_intersection = objects_list[k]->intersect(r, Pobject, Nobject, local_distance);
         if (local_intersection)
         {
             scene_intersection = true;
             if (local_distance < distance_min)
             {
                 distance_min = local_distance;
-                P = Psphere;
-                N = Nsphere;
+                P = Pobject;
+                N = Nobject;
                 sphere_id = k;
             }
         }
@@ -54,6 +54,12 @@ Vector Scene::getColor(Ray &r, int rebond) // Renvoie l'intensité du pixel
     if (this->intersect(r, P, n, id_sphere, t))
     {
         Object *oCurrent = objects_list[id_sphere]; // Sphere intersectée
+
+        // Si on arrive directement sur la lumière :
+        if ((oCurrent->isLight) && (rebond == this->max_rebonds))
+        {
+            return I * Vector(1., 1., 1.);
+        }
 
         //  SURFACE MIROIR :
         if (oCurrent->isMirror)
@@ -105,38 +111,62 @@ Vector Scene::getColor(Ray &r, int rebond) // Renvoie l'intensité du pixel
             Vector color; // Intensité de la lumière
 
             // ECLAIRAGE DIRECT
-            Vector v = P - this->Light->O;
-            v.normalize();
-            Vector omega_random = randh::random_cos(v);                       // On met -> parce que c'est un pointeur
-            omega_random.normalize();                                         // Direction aléatoire sur l'hémisphère de sLum
-            Vector x_random = omega_random * this->Light->R + this->Light->O; // Point à la surface de sLum issu de la direction aléatoire
-            Vector omega_i = (x_random - P);
-            omega_i.normalize();
-            double distlum2 = (x_random - P).norm2();
 
             // Grandeurs calculées pour l'ombre portée
             Vector Plum, nlum;
             double tlum;
             int idlum;
 
-            // Calcul d'ombre portée : on regarde s'il y a un obstacle entre le point et la lumière
-            if (this->intersect(Ray(P + (EPSILON * n), omega_i), Plum, nlum, idlum, tlum) && tlum * tlum < distlum2 * 0.99)
+            // Ombres douces
+            if (this->soft_shadows)
             {
-                //Ombre portée
-                color = Vector(0., 0., 0.);
+                Vector v = P - this->Light->O;
+                v.normalize();
+                Vector omega_random = randh::random_cos(v);                       // On met -> parce que c'est un pointeur
+                omega_random.normalize();                                         // Direction aléatoire sur l'hémisphère de sLum
+                Vector x_random = omega_random * this->Light->R + this->Light->O; // Point à la surface de sLum issu de la direction aléatoire
+                Vector omega_i = (x_random - P);
+                omega_i.normalize();
+                double distlum2 = (x_random - P).norm2();
+
+                // Calcul d'ombre portée : on regarde s'il y a un obstacle entre le point et la lumière
+                if (this->intersect(Ray(P + (EPSILON * n), omega_i), Plum, nlum, idlum, tlum) && tlum * tlum < distlum2 * 0.99)
+                {
+                    // Ombre portée
+                    color = Vector(0., 0., 0.);
+                }
+                else
+                {
+                    double pdf = std::max(0., dot(v, omega_random)) / M_PI / (this->Light->R * this->Light->R);
+                    Vector BRDF = oCurrent->albedo / M_PI;
+                    double jacobien = std::max(0., dot(-omega_i, omega_random)) / distlum2;
+                    color = this->I / (4 * M_PI * this->Light->R * this->Light->R * M_PI) * std::max(0., dot(n, omega_i)) * BRDF * jacobien / pdf;
+                }
             }
+            // Pas d'ombres douces
             else
             {
-                double pdf = std::max(0., dot(v, omega_random)) / M_PI / (this->Light->R * this->Light->R);
-                Vector BRDF = oCurrent->albedo / M_PI;
-                double jacobien = std::max(0., dot(-omega_i, omega_random)) / distlum2;
-                color = this->I / (4 * M_PI * this->Light->R * this->Light->R * M_PI) * std::max(0., dot(n, omega_i)) * BRDF * jacobien / pdf;
+                Vector l = this->Light->O - P;
+                double distlum = l.norm();
+                l.normalize();
+                if (this->intersect(Ray(P + (EPSILON * n), l), Plum, nlum, idlum, tlum) && tlum < distlum - this->Light->R - EPSILON)
+                {
+                    color = Vector(0., 0., 0.);
+                }
+                else
+                {
+                    Vector BRDF = oCurrent->albedo / M_PI;
+                    color = this->I / (4 * M_PI * distlum * distlum) * std::max(0., dot(l, n)) * BRDF;
+                }
             }
 
             // ECLAIRAGE INDIRECT
-            Vector random_u = randh::random_cos(n);
-            Ray rRandom(P + (EPSILON * n), random_u);
-            color = color + oCurrent->albedo * this->getColor(rRandom, rebond - 1);
+            if (this->indirect_light)
+            {
+                Vector random_u = randh::random_cos(n);
+                Ray rRandom(P + (EPSILON * n), random_u);
+                color = color + oCurrent->albedo * this->getColor(rRandom, rebond - 1);
+            }
             return color;
         }
     }

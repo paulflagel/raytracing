@@ -7,8 +7,8 @@
 class Object
 {
 public:
-    Vector O, albedo;
-    bool isMirror, isTransp;
+    Vector albedo;
+    bool isMirror, isTransp, isLight;
     double refraction_index;
 
     virtual bool intersect(const Ray &r, Vector &P, Vector &N, double &t) const = 0;

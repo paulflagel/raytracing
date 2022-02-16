@@ -18,11 +18,13 @@
 #include "Scene/Scene.h"
 #include "RandomHelper/RandomHelper.h"
 #include "Object/Object.h"
+#include "Triangle/Triangle.h"
 
-// #define INDIRECT_LIGHT true
+#define INDIRECT_LIGHT true
+#define SOFT_SHADOWS true
 #define NUM_RAYS_MC 32
-// #define ANTIALIASING true
-// #define DEPTH_OF_FIELD false
+#define ANTIALIASING true
+#define DEPTH_OF_FIELD false
 #define DDOF 55
 
 int main(int argc, char *argv[])
@@ -34,16 +36,27 @@ int main(int argc, char *argv[])
     Vector L(-10, 20, 40);        // Source de lumière
     double fov = 60 * M_PI / 180; // Field of view 60°
     double tanfov2 = tan(fov / 2);
-    double I = 5E10;                       // Intensité de la lumière (en Watts)
-    int nb_rays_monte_carlo = NUM_RAYS_MC; // Nombre de rayons envoyés pour Monte Carlo (error decreases in 1/sqrt(N))
+    double I = 5E10;         // Intensité de la lumière (en Watts)
+    int nb_rays_monte_carlo; // Nombre de rayons envoyés pour Monte Carlo (error decreases in 1/sqrt(N))
+    if (INDIRECT_LIGHT || SOFT_SHADOWS || ANTIALIASING)
+        nb_rays_monte_carlo = NUM_RAYS_MC;
+    else
+        nb_rays_monte_carlo = 1;
     int rebonds = 5;
     double ddof = DDOF;
 
     Scene scene(I);
+    scene.indirect_light = INDIRECT_LIGHT;
+    scene.soft_shadows = SOFT_SHADOWS;
+    scene.max_rebonds = rebonds;
 
     Sphere s1(Vector(0, 0, 0), 10, Vector(0.4, 0.1, 0.), false, false);
-    Sphere s2(Vector(-25, 20, -35), 10, Vector(0.4, 0.4, 0.4), false, false);
-    Sphere s3(Vector(10, -5, 25), 5, Vector(0.1, 0., 0.5), false, false);
+    // Sphere s2(Vector(-25, 20, -35), 10, Vector(0.4, 0.4, 0.4), false, false);
+    // Sphere s3(Vector(10, -5, 25), 5, Vector(0.1, 0., 0.5), false, false);
+
+    TriangleMesh tri(Vector(0.5, 0.5, 0.5), false, false);
+    tri.readOBJ("triangle.obj");
+
     Sphere sBack(Vector(0, 0, -1000), 940, Vector(0., 0.5, 0.));   // Sphère derrière la boule
     Sphere sFront(Vector(0, 0, 1000), 940, Vector(0.5, 0., 0.5));  // Sphère derrière la caméra
     Sphere sUp(Vector(0, 1000, 0), 940, Vector(0.5, 0., 0.));      // Plafond
@@ -56,8 +69,11 @@ int main(int argc, char *argv[])
     scene.Light = &sLum;
 
     scene.add(&s1);
-    scene.add(&s2);
-    scene.add(&s3);
+    // scene.add(&s2);
+    // scene.add(&s3);
+
+    // scene.add(&tri);
+
     scene.add(&sFront);
     scene.add(&sBack);
     scene.add(&sUp);
@@ -75,17 +91,22 @@ int main(int argc, char *argv[])
             Vector intensity;
             for (int k = 0; k < nb_rays_monte_carlo; k++)
             {
-                Vector dPixel = randh::box_muller(0.3);
+                Vector dPixel;
+                if (ANTIALIASING)
+                    dPixel = randh::box_muller(0.3);
                 Vector u(j - W / 2 + 0.5 + dPixel[0], (H - i) - (H / 2) + 0.5 + dPixel[1], -W / (2 * tanfov2));
                 u.normalize();
                 Ray r(C, u);
 
-                // Profondeur de champ
-                Vector dAperture = randh::box_muller(1.);
-                Vector Cprime = C + dAperture;
-                Vector uprime = C + ddof / abs(u[2]) * u - Cprime;
-                uprime.normalize();
-                r = Ray(Cprime, uprime); // Rayon issu de C dans la direction u
+                if (DEPTH_OF_FIELD)
+                {
+                    // Profondeur de champ
+                    Vector dAperture = randh::box_muller(1.);
+                    Vector Cprime = C + dAperture;
+                    Vector uprime = C + ddof / abs(u[2]) * u - Cprime;
+                    uprime.normalize();
+                    r = Ray(Cprime, uprime); // Rayon issu de C dans la direction u
+                }
 
                 intensity = intensity + scene.getColor(r, rebonds);
             }
