@@ -9,3 +9,6 @@ latex/
 image.png
 *.zip
 *.obj
+build/
+dog/
+raytracer
