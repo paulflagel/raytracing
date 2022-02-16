@@ -3,7 +3,7 @@
 
 Vector::Vector(double x, double y, double z)
 {
-    //Constructor
+    // Constructor
     data[0] = x;
     data[1] = y;
     data[2] = z;
@@ -11,7 +11,7 @@ Vector::Vector(double x, double y, double z)
 
 Vector::~Vector()
 {
-    //Destructor
+    // Destructor
 }
 
 double Vector::norm2() const

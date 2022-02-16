@@ -54,7 +54,6 @@ Vector Scene::getColor(Ray &r, int rebond) // Renvoie l'intensité du pixel
     if (this->intersect(r, P, n, id_sphere, t))
     {
         Object *oCurrent = objects_list[id_sphere]; // Sphere intersectée
-        // std::cout << oCurrent->isMirror << std::endl;
 
         //  SURFACE MIROIR :
         if (oCurrent->isMirror)

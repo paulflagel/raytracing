@@ -11,11 +11,11 @@ public:
     double norm() const;
     void normalize();
 
-    double operator[](int i) const; //renvoie un double constant (qu'on ne peut pas modifier) genre a[0]
-    double &operator[](int i);      //renvoie la référence vers un double pas constant (pas de const pour pouvoir le modifier) genre a[0] = 2
+    double operator[](int i) const; // renvoie un double constant (qu'on ne peut pas modifier) genre a[0]
+    double &operator[](int i);      // renvoie la référence vers un double pas constant (pas de const pour pouvoir le modifier) genre a[0] = 2
 
 private:
-    double data[3]; //tableau statique de 3 éléments (en précision double), qu'on remplit avec les coordonnées dans le costructeur
+    double data[3]; // tableau statique de 3 éléments (en précision double), qu'on remplit avec les coordonnées dans le costructeur
 };
 
 // Opérateurs définis pour les vecteurs
