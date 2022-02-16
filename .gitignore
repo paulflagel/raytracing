@@ -1,4 +1,3 @@
-main
 *.dSYM
 .vscode
 .DS_Store
@@ -8,3 +7,5 @@ CMakeLists.txt
 *.py
 latex/
 image.png
+*.zip
+*.obj
