@@ -6,10 +6,7 @@
 
 #define EPSILON 0.01
 
-Scene::Scene(double I)
-{
-    this->I = I;
-}
+Scene::Scene() {}
 
 Scene::~Scene() {}
 
@@ -40,7 +37,7 @@ bool Scene::intersect(const Ray &r, Vector &P, Vector &N, int &sphere_id, double
     return scene_intersection;
 }
 
-Vector Scene::getColor(Ray &r, int rebond) // Renvoie l'intensité du pixel
+Vector Scene::getColor(Ray &r, int rebond, bool showLight) // Renvoie l'intensité du pixel
 {
     if (rebond <= 0) // Condition de fin de récursion
     {
@@ -56,7 +53,7 @@ Vector Scene::getColor(Ray &r, int rebond) // Renvoie l'intensité du pixel
         Object *oCurrent = objects_list[id_sphere]; // Sphere intersectée
 
         // Si on arrive directement sur la lumière :
-        if ((oCurrent->isLight) && (rebond == this->max_rebonds))
+        if ((oCurrent->isLight) && showLight)
         {
             return I * Vector(1., 1., 1.);
         }
@@ -66,7 +63,7 @@ Vector Scene::getColor(Ray &r, int rebond) // Renvoie l'intensité du pixel
         {
             Vector uReflected = r.u - 2 * dot(r.u, n) * n;
             Ray rReflected(P + (EPSILON * n), uReflected);
-            return this->getColor(rReflected, rebond - 1);
+            return this->getColor(rReflected, rebond - 1, showLight);
         }
 
         // SURFACE TRANSPARENTE :

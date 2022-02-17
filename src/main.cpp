@@ -45,16 +45,18 @@ int main(int argc, char *argv[])
     int rebonds = 5;
     double ddof = DDOF;
 
-    Scene scene(I);
+    // Initialisation de la scène
+    Scene scene;
+    scene.I = I;
     scene.indirect_light = INDIRECT_LIGHT;
     scene.soft_shadows = SOFT_SHADOWS;
-    scene.max_rebonds = rebonds;
 
+    // Initialisation des objets de la scène
     // Sphere s1(Vector(0, 0, 0), 10, Vector(0.4, 0.1, 0.), false, false);
     // Sphere s2(Vector(-25, 20, -35), 10, Vector(0.4, 0.4, 0.4), false, false);
     // Sphere s3(Vector(10, -5, 25), 5, Vector(0.1, 0., 0.5), false, false);
 
-    TriangleMesh tri(Vector(0.4, 0.1, 0.1), false, false);
+    TriangleMesh tri(Vector(0.4, 0.1, 0.1), true, false);
     tri.readOBJ("triangle.obj");
 
     Sphere sBack(Vector(0, 0, -1000), 940, Vector(0., 0.5, 0.));   // Sphère derrière la boule
@@ -108,7 +110,7 @@ int main(int argc, char *argv[])
                     r = Ray(Cprime, uprime); // Rayon issu de C dans la direction u
                 }
 
-                intensity = intensity + scene.getColor(r, rebonds);
+                intensity = intensity + scene.getColor(r, rebonds, true);
             }
             intensity = intensity / nb_rays_monte_carlo;
 
