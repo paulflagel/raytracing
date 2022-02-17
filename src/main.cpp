@@ -20,10 +20,12 @@
 #include "Object/Object.h"
 #include "Triangle/Triangle.h"
 
-#define INDIRECT_LIGHT false
-#define SOFT_SHADOWS false
-#define NUM_RAYS_MC 128
-#define ANTIALIASING false
+#include "progressbar.h"
+
+#define INDIRECT_LIGHT true
+#define SOFT_SHADOWS true
+#define NUM_RAYS_MC 16
+#define ANTIALIASING true
 #define DEPTH_OF_FIELD false
 #define DDOF 55
 
@@ -52,12 +54,12 @@ int main(int argc, char *argv[])
     scene.soft_shadows = SOFT_SHADOWS;
 
     // Initialisation des objets de la scène
-    // Sphere s1(Vector(0, 0, 0), 10, Vector(0.4, 0.1, 0.), false, false);
-    // Sphere s2(Vector(-25, 20, -35), 10, Vector(0.4, 0.4, 0.4), false, false);
-    // Sphere s3(Vector(10, -5, 25), 5, Vector(0.1, 0., 0.5), false, false);
+    Sphere s1(Vector(0, 0, 0), 10, Vector(0.4, 0.1, 0.), false, false);
+    Sphere s2(Vector(-25, 20, -35), 10, Vector(0.4, 0.4, 0.4), false, false);
+    Sphere s3(Vector(10, -5, 25), 5, Vector(0.1, 0., 0.5), false, false);
 
-    TriangleMesh tri(Vector(0.4, 0.1, 0.1), true, false);
-    tri.readOBJ("triangle.obj");
+    // TriangleMesh tri(Vector(0.4, 0.1, 0.1), false, false);
+    // tri.readOBJ("dog/13463_Australian_Cattle_Dog_v3.obj");
 
     Sphere sBack(Vector(0, 0, -1000), 940, Vector(0., 0.5, 0.));   // Sphère derrière la boule
     Sphere sFront(Vector(0, 0, 1000), 940, Vector(0.5, 0., 0.5));  // Sphère derrière la caméra
@@ -70,11 +72,11 @@ int main(int argc, char *argv[])
     scene.add(&sLum);
     scene.Light = &sLum;
 
-    // scene.add(&s1);
-    // scene.add(&s2);
-    // scene.add(&s3);
+    scene.add(&s1);
+    scene.add(&s2);
+    scene.add(&s3);
 
-    scene.add(&tri);
+    // scene.add(&tri);
 
     scene.add(&sFront);
     scene.add(&sBack);
@@ -82,6 +84,9 @@ int main(int argc, char *argv[])
     scene.add(&sDown);
     scene.add(&sRight);
     scene.add(&sLeft);
+
+    ProgressBar pg;
+    pg.start(H);
 
     auto start = std::chrono::high_resolution_clock::now();
     std::vector<unsigned char> image(W * H * 3, 0); // Crée un tableau 1D de W*H*3 éléments initialisés à 0 (l'image)
@@ -118,13 +123,15 @@ int main(int argc, char *argv[])
             image[(i * W + j) * 3 + 1] = std::min(255., std::pow(intensity[1], 1 / 2.2)); // G
             image[(i * W + j) * 3 + 2] = std::min(255., std::pow(intensity[2], 1 / 2.2)); // B
         }
+        pg.update(i + 1);
     }
 
     stbi_write_png("image.png", W, H, 3, &image[0], 0);
     auto end = std::chrono::high_resolution_clock::now();
     auto diff = end - start;
     auto diff_sec = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
-    std::cout << "Run time : " << diff_sec.count() << "ms (" << diff_sec.count() / 1000. << "s)" << std::endl;
+    std::cout << std::endl
+              << "Run time : " << diff_sec.count() << "ms (" << diff_sec.count() / 1000. << "s)" << std::endl;
 
     return 0;
 }
