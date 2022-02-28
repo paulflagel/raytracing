@@ -94,7 +94,6 @@ int main(int argc, char *argv[])
 #pragma omp parallel for                            // Parallélisation du calcul, mettre un flag openmp à gcc. Ici on fait sur toutes les lignes de l'image
     for (int i = 0; i < H; i++)
     {
-        pg.update(i);
         for (int j = 0; j < W; j++)
         {
             Vector intensity;
@@ -125,6 +124,7 @@ int main(int argc, char *argv[])
             image[(i * W + j) * 3 + 1] = std::min(255., std::pow(intensity[1], 1 / 2.2)); // G
             image[(i * W + j) * 3 + 2] = std::min(255., std::pow(intensity[2], 1 / 2.2)); // B
         }
+        pg.update(i + 1);
     }
 
     stbi_write_png("image.png", W, H, 3, &image[0], 0);
