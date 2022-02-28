@@ -24,7 +24,7 @@
 
 #define INDIRECT_LIGHT true
 #define SOFT_SHADOWS true
-#define NUM_RAYS_MC 16
+#define NUM_RAYS_MC 64
 #define ANTIALIASING true
 #define DEPTH_OF_FIELD false
 #define DDOF 55
@@ -58,8 +58,9 @@ int main(int argc, char *argv[])
     Sphere s2(Vector(-25, 20, -35), 10, Vector(0.4, 0.4, 0.4), false, false);
     Sphere s3(Vector(10, -5, 25), 5, Vector(0.1, 0., 0.5), false, false);
 
-    // TriangleMesh tri(Vector(0.4, 0.1, 0.1), false, false);
-    // tri.readOBJ("dog/13463_Australian_Cattle_Dog_v3.obj");
+    TriangleMesh tri(Vector(0.4, 0.1, 0.1), false, false);
+    tri.readOBJ("dog/13463_Australian_Cattle_Dog_v3.obj");
+    tri.get_bbox();
 
     Sphere sBack(Vector(0, 0, -1000), 940, Vector(0., 0.5, 0.));   // Sphère derrière la boule
     Sphere sFront(Vector(0, 0, 1000), 940, Vector(0.5, 0., 0.5));  // Sphère derrière la caméra
@@ -72,11 +73,11 @@ int main(int argc, char *argv[])
     scene.add(&sLum);
     scene.Light = &sLum;
 
-    scene.add(&s1);
-    scene.add(&s2);
-    scene.add(&s3);
+    // scene.add(&s1);
+    // scene.add(&s2);
+    // scene.add(&s3);
 
-    // scene.add(&tri);
+    scene.add(&tri);
 
     scene.add(&sFront);
     scene.add(&sBack);
@@ -93,6 +94,7 @@ int main(int argc, char *argv[])
 #pragma omp parallel for                            // Parallélisation du calcul, mettre un flag openmp à gcc. Ici on fait sur toutes les lignes de l'image
     for (int i = 0; i < H; i++)
     {
+        pg.update(i);
         for (int j = 0; j < W; j++)
         {
             Vector intensity;
@@ -123,7 +125,6 @@ int main(int argc, char *argv[])
             image[(i * W + j) * 3 + 1] = std::min(255., std::pow(intensity[1], 1 / 2.2)); // G
             image[(i * W + j) * 3 + 2] = std::min(255., std::pow(intensity[2], 1 / 2.2)); // B
         }
-        pg.update(i + 1);
     }
 
     stbi_write_png("image.png", W, H, 3, &image[0], 0);
