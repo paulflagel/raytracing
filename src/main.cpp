@@ -20,12 +20,12 @@
 #include "Object/Object.h"
 #include "Triangle/Triangle.h"
 
-#include "progressbar.h"
+#include "progressbar.hpp"
 
-#define INDIRECT_LIGHT true
-#define SOFT_SHADOWS true
+#define INDIRECT_LIGHT false
+#define SOFT_SHADOWS false
 #define NUM_RAYS_MC 64
-#define ANTIALIASING true
+#define ANTIALIASING false
 #define DEPTH_OF_FIELD false
 #define DDOF 55
 
@@ -60,7 +60,12 @@ int main(int argc, char *argv[])
 
     TriangleMesh tri(Vector(0.4, 0.1, 0.1), false, false);
     tri.readOBJ("dog/13463_Australian_Cattle_Dog_v3.obj");
-    tri.get_bbox();
+    tri.swapAxis(1, 2); // Rotation autour de x
+    tri.swapAxis(0, 2); // Rotation autour de y
+    // tri.get_bbox();
+    std::cout << "Init BVH..." << std::endl;
+    tri.init_BVH();
+    std::cout << "Init BVH done" << std::endl;
 
     Sphere sBack(Vector(0, 0, -1000), 940, Vector(0., 0.5, 0.));   // Sphère derrière la boule
     Sphere sFront(Vector(0, 0, 1000), 940, Vector(0.5, 0., 0.5));  // Sphère derrière la caméra
@@ -86,14 +91,15 @@ int main(int argc, char *argv[])
     scene.add(&sRight);
     scene.add(&sLeft);
 
-    ProgressBar pg;
-    pg.start(H);
+    progressbar bar(H);
 
     auto start = std::chrono::high_resolution_clock::now();
     std::vector<unsigned char> image(W * H * 3, 0); // Crée un tableau 1D de W*H*3 éléments initialisés à 0 (l'image)
-#pragma omp parallel for                            // Parallélisation du calcul, mettre un flag openmp à gcc. Ici on fait sur toutes les lignes de l'image
+#pragma omp parallel for schedule(dynamic, 1)       // Parallélisation du calcul, mettre un flag openmp à gcc. Ici on fait sur toutes les lignes de l'image
     for (int i = 0; i < H; i++)
     {
+#pragma omp critical
+        bar.update();
         for (int j = 0; j < W; j++)
         {
             Vector intensity;
@@ -124,7 +130,6 @@ int main(int argc, char *argv[])
             image[(i * W + j) * 3 + 1] = std::min(255., std::pow(intensity[1], 1 / 2.2)); // G
             image[(i * W + j) * 3 + 2] = std::min(255., std::pow(intensity[2], 1 / 2.2)); // B
         }
-        pg.update(i + 1);
     }
 
     stbi_write_png("image.png", W, H, 3, &image[0], 0);

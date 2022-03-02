@@ -5,11 +5,16 @@
 #include <vector>
 #include <string.h>
 #include <cmath>
+#include <list>
 
 #include "../Vector/Vector.h"
 #include "Triangle.h"
 
-BoundingBox::BoundingBox() {}
+BoundingBox::BoundingBox(Vector min, Vector max)
+{
+    this->min = min;
+    this->max = max;
+}
 
 TriangleIndices::TriangleIndices(int vtxi, int vtxj, int vtxk, int ni, int nj, int nk, int uvi, int uvj, int uvk, int group, bool added)
 {
@@ -404,51 +409,81 @@ void TriangleMesh::get_bbox()
     this->bbox.max = Vector(xMax, yMax, zMax);
 }
 
+BoundingBox TriangleMesh::get_bbox(int lower, int upper)
+{
+    double xMin, xMax, yMin, yMax, zMin, zMax;
+    TriangleIndices triangle;
+    for (int k = lower; k < upper; k++)
+    {
+        triangle = indices[k];
+        xMin = std::min(xMin, std::min(vertices[triangle.vtxi][0], std::min(vertices[triangle.vtxj][0], vertices[triangle.vtxk][0])));
+        xMax = std::max(xMax, std::max(vertices[triangle.vtxi][0], std::max(vertices[triangle.vtxj][0], vertices[triangle.vtxk][0])));
+        yMin = std::min(yMin, std::min(vertices[triangle.vtxi][1], std::min(vertices[triangle.vtxj][1], vertices[triangle.vtxk][1])));
+        yMax = std::max(yMax, std::max(vertices[triangle.vtxi][1], std::max(vertices[triangle.vtxj][1], vertices[triangle.vtxk][1])));
+        zMin = std::min(zMin, std::min(vertices[triangle.vtxi][2], std::min(vertices[triangle.vtxj][2], vertices[triangle.vtxk][2])));
+        zMax = std::max(zMax, std::max(vertices[triangle.vtxi][2], std::max(vertices[triangle.vtxj][2], vertices[triangle.vtxk][2])));
+    }
+    return BoundingBox(Vector(xMin, yMin, zMin), Vector(xMax, yMax, zMax));
+}
+
 bool TriangleMesh::intersect(const Ray &r, Vector &P, Vector &N, double &t) const
 {
-    // On teste d'abord si on intersecte la bounding box du mesh
-    if (!intersect_bbox(r))
-    {
+    if (!(bvh.bbox.intersect(r)))
         return false;
-    }
+
+    std::list<const BVH *> nodes;
+    nodes.push_back(&bvh);
 
     t = 1E99; // distance au triangle le plus proche
     bool triangle_intersection = false;
 
-    // On parcourt tous les triangles du mesh
-    for (int k = 0; k < indices.size(); k++)
+    while (!nodes.empty())
     {
-        double t_intersect;
-        Vector Ptriangle, Ntriangle;
-        if (intersect_with_triangle(indices[k], r, Ptriangle, Ntriangle, t_intersect))
+        const BVH *currentBVH = nodes.front();
+        nodes.pop_front();
+
+        if (currentBVH->left_child && currentBVH->left_child->bbox.intersect(r))
+            nodes.push_front(currentBVH->left_child);
+
+        if (currentBVH->right_child && currentBVH->right_child->bbox.intersect(r))
+            nodes.push_front(currentBVH->right_child);
+
+        if (!currentBVH->left_child)
         {
-            triangle_intersection = true;
-            if (t_intersect < t)
+            for (int k = currentBVH->lower_index; k < currentBVH->upper_index; k++)
             {
-                t = t_intersect;
-                P = Ptriangle;
-                N = Ntriangle;
+                double t_intersect;
+                Vector Ptriangle, Ntriangle;
+                if (intersect_with_triangle(indices[k], r, Ptriangle, Ntriangle, t_intersect))
+                {
+                    triangle_intersection = true;
+                    if (t_intersect < t)
+                    {
+                        t = t_intersect;
+                        P = Ptriangle;
+                        N = Ntriangle;
+                    }
+                }
             }
         }
     }
     return triangle_intersection;
 }
 
-bool TriangleMesh::intersect_bbox(const Ray &r) const
+bool BoundingBox::intersect(const Ray &r) const
 {
-
-    double tx1 = (bbox.min[0] - r.C[0]) / r.u[0];
-    double tx2 = (bbox.max[0] - r.C[0]) / r.u[0];
+    double tx1 = (min[0] - r.C[0]) / r.u[0];
+    double tx2 = (max[0] - r.C[0]) / r.u[0];
     double txmin = std::min(tx1, tx2);
     double txmax = std::max(tx1, tx2);
 
-    double ty1 = (bbox.min[1] - r.C[1]) / r.u[1];
-    double ty2 = (bbox.max[1] - r.C[1]) / r.u[1];
+    double ty1 = (min[1] - r.C[1]) / r.u[1];
+    double ty2 = (max[1] - r.C[1]) / r.u[1];
     double tymin = std::min(ty1, ty2);
     double tymax = std::max(ty1, ty2);
 
-    double tz1 = (bbox.min[2] - r.C[2]) / r.u[2];
-    double tz2 = (bbox.max[2] - r.C[2]) / r.u[2];
+    double tz1 = (min[2] - r.C[2]) / r.u[2];
+    double tz2 = (max[2] - r.C[2]) / r.u[2];
     double tzmin = std::min(tz1, tz2);
     double tzmax = std::max(tz1, tz2);
 
@@ -489,4 +524,75 @@ bool TriangleMesh::intersect_with_triangle(const TriangleIndices &triangle, cons
     P = vertice_i + e_1 * beta + e_2 * gamma;
     N.normalize();
     return true;
+}
+
+void TriangleMesh::swapAxis(int axis1, int axis2)
+{
+    for (int k = 0; k < normals.size(); k++)
+    {
+        std::swap(normals[k][axis1], normals[k][axis2]);
+    }
+
+    for (int k = 0; k < vertices.size(); k++)
+    {
+        std::swap(vertices[k][axis1], vertices[k][axis2]);
+    }
+}
+
+void TriangleMesh::invertNormals()
+{
+    for (int k = 0; k < normals.size(); k++)
+    {
+        normals[k] = (-1) * normals[k];
+    }
+}
+
+void TriangleMesh::build_BVH(BVH *n, int lower, int upper)
+{
+    n->bbox = get_bbox(lower, upper);
+    n->lower_index = lower;
+    n->upper_index = upper;
+    n->left_child = NULL;
+    n->right_child = NULL;
+
+    Vector diag = n->bbox.max - n->bbox.min; // Diagonale de la bbox
+    int dim = -1;                            // Axe selon lequel on sépare les bbox récursivement
+
+    if (diag[0] >= std::max(diag[1], diag[2]))
+        dim = 0;
+    else if (diag[1] >= std::max(diag[0], diag[2]))
+        dim = 1;
+    else if (diag[2] >= std::max(diag[0], diag[1]))
+        dim = 2;
+
+    double split_value = (n->bbox.min[dim] + n->bbox.max[dim]) / 2;
+
+    int pivot = lower;
+
+    for (int k = lower; k < upper; k++)
+    {
+        TriangleIndices triangle = indices[k];
+        double centre_gravite = (vertices[triangle.vtxi][dim] + vertices[triangle.vtxj][dim] + vertices[triangle.vtxk][dim]) / 3;
+
+        if (centre_gravite < split_value)
+        {
+            std::swap(indices[k], indices[pivot]); // quick sort
+            pivot++;
+        }
+    }
+
+    if (pivot < lower || pivot >= upper - 1 || upper - lower <= 5)
+    {
+        return;
+    }
+
+    n->left_child = new BVH;
+    n->right_child = new BVH;
+    build_BVH(n->left_child, lower, pivot + 1);
+    build_BVH(n->right_child, pivot + 1, upper);
+}
+
+void TriangleMesh::init_BVH()
+{
+    build_BVH(&bvh, 0, indices.size());
 }

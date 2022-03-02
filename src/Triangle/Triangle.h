@@ -8,9 +8,18 @@
 class BoundingBox
 {
 public:
-    BoundingBox();
-
+    BoundingBox(Vector min = Vector(0., 0., 0.), Vector max = Vector(0., 0., 0.));
+    bool intersect(const Ray &r) const;
     Vector min, max;
+};
+
+// BVH
+class BVH
+{
+public:
+    BoundingBox bbox;
+    BVH *left_child, *right_child; // Fils gauche et droit
+    int lower_index, upper_index;  // Indices des faces qu'on prend en compte
 };
 
 class TriangleIndices
@@ -41,8 +50,14 @@ public:
     std::vector<Vector> vertexcolors;
 
     BoundingBox bbox;
-    bool intersect_bbox(const Ray &r) const;
     void get_bbox();
+    void swapAxis(int axis1, int axis2);
+    void invertNormals();
+
+    BVH bvh;
+    BoundingBox get_bbox(int lower, int upper);
+    void build_BVH(BVH *n, int tri_min, int tri_max);
+    void init_BVH();
 };
 
 #endif
