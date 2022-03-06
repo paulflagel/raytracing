@@ -1,7 +1,7 @@
 CXX = g++-11 # Compiler to use
 FLAGS = -fopenmp -g -fdiagnostics-color=always # Flags to pass
 
-TARGET_EXEC := raytracer
+TARGET_EXEC := main
 
 BUILD_DIR := ./build
 SRC_DIRS := ./src
@@ -17,7 +17,7 @@ OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 
 # The final build step.
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
-	$(CXX) $(OBJS) -o $(TARGET_EXEC) $(FLAGS)
+	$(CXX) $(OBJS) -o $(SRC_DIRS)/$(TARGET_EXEC) $(FLAGS)
 
 # Build step for C++ source
 $(BUILD_DIR)/%.cpp.o: %.cpp
