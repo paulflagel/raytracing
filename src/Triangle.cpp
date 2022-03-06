@@ -556,12 +556,11 @@ void TriangleMesh::build_BVH(BVH *n, int lower, int upper)
     n->bbox = get_bbox(lower, upper);
     n->lower_index = lower;
     n->upper_index = upper;
-
     n->left_child = NULL;
     n->right_child = NULL;
 
     Vector diag = n->bbox.max - n->bbox.min; // Diagonale de la bbox
-    int dim;                                 // Axe selon lequel on sépare les bbox récursivement
+    int dim = -1;                            // Axe selon lequel on sépare les bbox récursivement
 
     if (diag[0] >= std::max(diag[1], diag[2]))
         dim = 0;
@@ -586,15 +585,15 @@ void TriangleMesh::build_BVH(BVH *n, int lower, int upper)
         }
     }
 
-    if (pivot < lower || pivot >= upper - 1 || (upper - lower <= 5))
+    if (pivot < lower || pivot >= upper - 1 || upper - lower <= 5)
     {
         return;
     }
 
     n->left_child = new BVH;
     n->right_child = new BVH;
-    this->build_BVH(n->left_child, lower, pivot + 1);
-    this->build_BVH(n->right_child, pivot + 1, upper);
+    build_BVH(n->left_child, lower, pivot + 1);
+    build_BVH(n->right_child, pivot + 1, upper);
 }
 
 void TriangleMesh::init_BVH()
