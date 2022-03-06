@@ -26,4 +26,4 @@ $(BUILD_DIR)/%.cpp.o: %.cpp
 
 .PHONY: clean
 clean:
-	rm -r $(BUILD_DIR) $(TARGET_EXEC)
+	rm -r $(BUILD_DIR) $(SRC_DIRS)/$(TARGET_EXEC)
