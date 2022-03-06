@@ -2,7 +2,6 @@
 .vscode
 .DS_Store
 /images
-legacy/
 CMakeLists.txt
 *.py
 latex/
@@ -11,5 +10,5 @@ image.png
 *.obj
 build/
 dog/
-raytracer
+src/main
 poly.pdf
