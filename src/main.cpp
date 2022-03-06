@@ -12,13 +12,13 @@
 #include <chrono>
 #include "omp.h"
 
-#include "Vector/Vector.h"
-#include "Ray/Ray.h"
-#include "Sphere/Sphere.h"
-#include "Scene/Scene.h"
-#include "RandomHelper/RandomHelper.h"
-#include "Object/Object.h"
-#include "Triangle/Triangle.h"
+#include "Vector.h"
+#include "Ray.h"
+#include "Sphere.h"
+#include "Scene.h"
+#include "RandomHelper.h"
+#include "Object.h"
+#include "Triangle.h"
 
 #include "progressbar.hpp"
 
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
     Sphere s3(Vector(10, -5, 25), 5, Vector(0.1, 0., 0.5), false, false);
 
     TriangleMesh tri(Vector(0.4, 0.1, 0.1), false, false);
-    tri.readOBJ("dog/13463_Australian_Cattle_Dog_v3.obj");
+    tri.readOBJ("../dog/13463_Australian_Cattle_Dog_v3.obj");
     tri.swapAxis(1, 2); // Rotation autour de x
     tri.swapAxis(0, 2); // Rotation autour de y
     // tri.get_bbox();

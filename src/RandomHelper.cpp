@@ -2,7 +2,7 @@
 #include <iostream>
 #include <omp.h>
 #include <cmath>
-#include "../Vector/Vector.h"
+#include "Vector.h"
 #include "RandomHelper.h"
 
 #define NUM_THREADS 8

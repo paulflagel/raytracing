@@ -2,7 +2,7 @@
 #define RANDOMHELPER
 
 #include <random>
-#include "../Vector/Vector.h"
+#include "Vector.h"
 
 namespace randh
 {

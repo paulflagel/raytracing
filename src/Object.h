@@ -1,8 +1,8 @@
 #ifndef OBJECT
 #define OBJECT
 
-#include "../Ray/Ray.h"
-#include "../Vector/Vector.h"
+#include "Ray.h"
+#include "Vector.h"
 
 class Object
 {

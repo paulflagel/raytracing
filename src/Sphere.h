@@ -1,9 +1,9 @@
 #ifndef SPHERE
 #define SPHERE
 
-#include "../Vector/Vector.h"
-#include "../Ray/Ray.h"
-#include "../Object/Object.h"
+#include "Vector.h"
+#include "Ray.h"
+#include "Object.h"
 
 class Sphere : public Object
 {

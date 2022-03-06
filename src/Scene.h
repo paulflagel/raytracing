@@ -1,11 +1,11 @@
 #ifndef SCENE
 #define SCENE
 
-#include "../Vector/Vector.h"
-#include "../Ray/Ray.h"
-#include "../Sphere/Sphere.h"
-#include "../RandomHelper/RandomHelper.h"
-#include "../Object/Object.h"
+#include "Vector.h"
+#include "Ray.h"
+#include "Sphere.h"
+#include "RandomHelper.h"
+#include "Object.h"
 #include <vector>
 
 class Scene

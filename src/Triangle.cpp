@@ -7,7 +7,7 @@
 #include <cmath>
 #include <list>
 
-#include "../Vector/Vector.h"
+#include "Vector.h"
 #include "Triangle.h"
 
 BoundingBox::BoundingBox(Vector min, Vector max)
@@ -15,6 +15,8 @@ BoundingBox::BoundingBox(Vector min, Vector max)
     this->min = min;
     this->max = max;
 }
+
+BoundingBox::BoundingBox() {}
 
 TriangleIndices::TriangleIndices(int vtxi, int vtxj, int vtxk, int ni, int nj, int nk, int uvi, int uvj, int uvk, int group, bool added)
 {
@@ -442,13 +444,15 @@ bool TriangleMesh::intersect(const Ray &r, Vector &P, Vector &N, double &t) cons
         const BVH *currentBVH = nodes.front();
         nodes.pop_front();
 
-        if (currentBVH->left_child && currentBVH->left_child->bbox.intersect(r))
-            nodes.push_front(currentBVH->left_child);
+        if (currentBVH->left_child)
+        {
+            if (currentBVH->left_child->bbox.intersect(r))
+                nodes.push_front(currentBVH->left_child);
+            if (currentBVH->right_child->bbox.intersect(r))
+                nodes.push_front(currentBVH->right_child);
+        }
 
-        if (currentBVH->right_child && currentBVH->right_child->bbox.intersect(r))
-            nodes.push_front(currentBVH->right_child);
-
-        if (!currentBVH->left_child)
+        else
         {
             for (int k = currentBVH->lower_index; k < currentBVH->upper_index; k++)
             {
@@ -552,11 +556,12 @@ void TriangleMesh::build_BVH(BVH *n, int lower, int upper)
     n->bbox = get_bbox(lower, upper);
     n->lower_index = lower;
     n->upper_index = upper;
+
     n->left_child = NULL;
     n->right_child = NULL;
 
     Vector diag = n->bbox.max - n->bbox.min; // Diagonale de la bbox
-    int dim = -1;                            // Axe selon lequel on sépare les bbox récursivement
+    int dim;                                 // Axe selon lequel on sépare les bbox récursivement
 
     if (diag[0] >= std::max(diag[1], diag[2]))
         dim = 0;
@@ -581,15 +586,15 @@ void TriangleMesh::build_BVH(BVH *n, int lower, int upper)
         }
     }
 
-    if (pivot < lower || pivot >= upper - 1 || upper - lower <= 5)
+    if (pivot < lower || pivot >= upper - 1 || (upper - lower <= 5))
     {
         return;
     }
 
     n->left_child = new BVH;
     n->right_child = new BVH;
-    build_BVH(n->left_child, lower, pivot + 1);
-    build_BVH(n->right_child, pivot + 1, upper);
+    this->build_BVH(n->left_child, lower, pivot + 1);
+    this->build_BVH(n->right_child, pivot + 1, upper);
 }
 
 void TriangleMesh::init_BVH()

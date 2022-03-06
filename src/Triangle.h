@@ -1,14 +1,15 @@
 #ifndef TRIANGLE
 #define TRIANGLE
 
-#include "../Vector/Vector.h"
-#include "../Ray/Ray.h"
-#include "../Object/Object.h"
+#include "Vector.h"
+#include "Ray.h"
+#include "Object.h"
 
 class BoundingBox
 {
 public:
-    BoundingBox(Vector min = Vector(0., 0., 0.), Vector max = Vector(0., 0., 0.));
+    BoundingBox(Vector min, Vector max);
+    BoundingBox();
     bool intersect(const Ray &r) const;
     Vector min, max;
 };

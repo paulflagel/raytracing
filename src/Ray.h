@@ -1,7 +1,7 @@
 #ifndef RAY
 #define RAY
 
-#include "../Vector/Vector.h"
+#include "Vector.h"
 
 class Ray
 {
