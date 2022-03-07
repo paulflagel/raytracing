@@ -9,6 +9,6 @@ image.png
 *.zip
 *.obj
 build/
-dog/
+mesh/
 src/main
 poly.pdf
