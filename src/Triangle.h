@@ -54,6 +54,11 @@ public:
     void get_bbox();
     void swapAxis(int axis1, int axis2);
     void invertNormals();
+    void scale(float factor, Vector offset = Vector(0., 0., 0.));
+    void rotate(int axis, double angle);
+
+    bool use_bvh;
+    bool normals_interpolation;
 
     BVH bvh;
     BoundingBox get_bbox(int lower, int upper);

@@ -11,7 +11,7 @@
 class Scene
 {
 public:
-    Scene();
+    Scene(RandomHelper &r);
     ~Scene();
 
     std::vector<Object *> objects_list;
@@ -24,6 +24,8 @@ public:
 
     bool indirect_light = true;
     bool soft_shadows = true;
+
+    RandomHelper randh;
 };
 
 #endif

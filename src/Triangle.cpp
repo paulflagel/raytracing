@@ -430,43 +430,73 @@ BoundingBox TriangleMesh::get_bbox(int lower, int upper)
 
 bool TriangleMesh::intersect(const Ray &r, Vector &P, Vector &N, double &t) const
 {
-    if (!(bvh.bbox.intersect(r)))
-        return false;
-
-    std::list<const BVH *> nodes;
-    nodes.push_back(&bvh);
-
     t = 1E99; // distance au triangle le plus proche
     bool triangle_intersection = false;
 
-    while (!nodes.empty())
+    if (use_bvh)
     {
-        const BVH *currentBVH = nodes.front();
-        nodes.pop_front();
+        if (!(bvh.bbox.intersect(r)))
+            return false;
 
-        if (currentBVH->left_child)
+        std::list<const BVH *> nodes;
+        nodes.push_back(&bvh);
+
+        while (!nodes.empty())
         {
-            if (currentBVH->left_child->bbox.intersect(r))
-                nodes.push_front(currentBVH->left_child);
-            if (currentBVH->right_child->bbox.intersect(r))
-                nodes.push_front(currentBVH->right_child);
+            const BVH *currentBVH = nodes.front();
+            nodes.pop_front();
+
+            if (currentBVH->left_child)
+            {
+                if (currentBVH->left_child->bbox.intersect(r))
+                    nodes.push_front(currentBVH->left_child);
+                if (currentBVH->right_child->bbox.intersect(r))
+                    nodes.push_front(currentBVH->right_child);
+            }
+
+            else
+            {
+                for (int k = currentBVH->lower_index; k < currentBVH->upper_index; k++)
+                {
+                    double t_intersect;
+                    Vector Ptriangle, Ntriangle;
+                    if (intersect_with_triangle(indices[k], r, Ptriangle, Ntriangle, t_intersect))
+                    {
+                        triangle_intersection = true;
+                        if (t_intersect < t)
+                        {
+                            t = t_intersect;
+                            P = Ptriangle;
+                            N = Ntriangle;
+                        }
+                    }
+                }
+            }
+        }
+        return triangle_intersection;
+    }
+
+    else
+    {
+        if (!bbox.intersect(r))
+        {
+            // On teste d'abord si on intersecte la bounding box du mesh
+            return false;
         }
 
-        else
+        // On parcourt tous les triangles du mesh
+        for (int k = 0; k < indices.size(); k++)
         {
-            for (int k = currentBVH->lower_index; k < currentBVH->upper_index; k++)
+            double t_intersect;
+            Vector Ptriangle, Ntriangle;
+            if (intersect_with_triangle(indices[k], r, Ptriangle, Ntriangle, t_intersect))
             {
-                double t_intersect;
-                Vector Ptriangle, Ntriangle;
-                if (intersect_with_triangle(indices[k], r, Ptriangle, Ntriangle, t_intersect))
+                triangle_intersection = true;
+                if (t_intersect < t)
                 {
-                    triangle_intersection = true;
-                    if (t_intersect < t)
-                    {
-                        t = t_intersect;
-                        P = Ptriangle;
-                        N = Ntriangle;
-                    }
+                    t = t_intersect;
+                    P = Ptriangle;
+                    N = Ntriangle;
                 }
             }
         }
@@ -526,6 +556,16 @@ bool TriangleMesh::intersect_with_triangle(const TriangleIndices &triangle, cons
         return false;
     }
     P = vertice_i + e_1 * beta + e_2 * gamma;
+
+    if (normals_interpolation)
+    {
+        // Interpolation des normales
+        Vector ni = normals[triangle.ni];
+        Vector nj = normals[triangle.nj];
+        Vector nk = normals[triangle.nk];
+        N = (ni * alpha) + (ni * beta) + (nk * gamma);
+    }
+    // N = -N;
     N.normalize();
     return true;
 }
@@ -548,6 +588,38 @@ void TriangleMesh::invertNormals()
     for (int k = 0; k < normals.size(); k++)
     {
         normals[k] = (-1) * normals[k];
+    }
+}
+
+void TriangleMesh::scale(float factor, Vector offset)
+{
+    for (int k = 0; k < vertices.size(); k++)
+    {
+        vertices[k] = factor * vertices[k] + offset;
+    }
+};
+
+void TriangleMesh::rotate(int axis, double angle)
+{
+    angle = angle * M_PI / 180;
+    double cosinus = cos(angle);
+    double sinus = sin(angle);
+    int dim1 = (axis + 1) % 3;
+    int dim2 = (axis + 2) % 3;
+
+    for (int k = 0; k < vertices.size(); k++)
+    {
+        double tmp1 = vertices[k][dim1];
+        double tmp2 = vertices[k][dim2];
+        vertices[k][dim1] = tmp1 * cosinus + tmp2 * sinus;
+        vertices[k][dim2] = -tmp1 * sinus + tmp2 * cosinus;
+    }
+    for (int k = 0; k < normals.size(); k++)
+    {
+        double tmp1 = normals[k][dim1];
+        double tmp2 = normals[k][dim2];
+        normals[k][dim1] = tmp1 * cosinus + tmp2 * sinus;
+        normals[k][dim2] = -tmp1 * sinus + tmp2 * cosinus;
     }
 }
 

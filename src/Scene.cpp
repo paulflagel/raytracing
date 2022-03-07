@@ -6,7 +6,10 @@
 
 #define EPSILON 0.01
 
-Scene::Scene() {}
+Scene::Scene(RandomHelper &r)
+{
+    this->randh = r;
+}
 
 Scene::~Scene() {}
 
@@ -119,7 +122,7 @@ Vector Scene::getColor(Ray &r, int rebond, bool showLight) // Renvoie l'intensit
             {
                 Vector v = P - this->Light->O;
                 v.normalize();
-                Vector omega_random = randh::random_cos(v);                       // On met -> parce que c'est un pointeur
+                Vector omega_random = randh.random_cos(v);                        // On met -> parce que c'est un pointeur
                 omega_random.normalize();                                         // Direction aléatoire sur l'hémisphère de sLum
                 Vector x_random = omega_random * this->Light->R + this->Light->O; // Point à la surface de sLum issu de la direction aléatoire
                 Vector omega_i = (x_random - P);
@@ -160,7 +163,7 @@ Vector Scene::getColor(Ray &r, int rebond, bool showLight) // Renvoie l'intensit
             // ECLAIRAGE INDIRECT
             if (this->indirect_light)
             {
-                Vector random_u = randh::random_cos(n);
+                Vector random_u = randh.random_cos(n);
                 Ray rRandom(P + (EPSILON * n), random_u);
                 color = color + oCurrent->albedo * this->getColor(rRandom, rebond - 1);
             }

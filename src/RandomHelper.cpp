@@ -5,17 +5,23 @@
 #include "Vector.h"
 #include "RandomHelper.h"
 
-#define NUM_THREADS 8
-
-std::default_random_engine engine[NUM_THREADS];
-std::uniform_real_distribution<double> uniform(0.0, 1.0);
-
-Vector randh::box_muller(float sigma)
+RandomHelper::RandomHelper()
 {
+    std::random_device r;
+    for (int i = 0, N = omp_get_max_threads(); i < N; ++i)
+    {
+        this->generators.emplace_back(std::default_random_engine(r()));
+        this->uniforms.emplace_back(std::uniform_real_distribution<double>(0.0, 1.0));
+    }
+}
+
+Vector RandomHelper::box_muller(float sigma)
+{
+    std::default_random_engine &engine = generators[omp_get_thread_num()];
+    std::uniform_real_distribution<double> &uniform = uniforms[omp_get_thread_num()];
     // Génère deux nombres aléatoires suivant une loi normale centrée réduite à partir de deux nombres suivant une loi uniforme
-    int thread_id = omp_get_thread_num();
-    double r1 = uniform(engine[thread_id]);
-    double r2 = uniform(engine[thread_id]);
+    double r1 = uniform(engine);
+    double r2 = uniform(engine);
     double r = sqrt(-2 * log(r2));
     double t = 2 * M_PI * r1;
 
@@ -24,12 +30,13 @@ Vector randh::box_muller(float sigma)
     return Vector(dx, dy, 0.);
 };
 
-Vector randh::random_cos(Vector &N) // Retourne omega_i
+Vector RandomHelper::random_cos(Vector &N) // Retourne omega_i
 {
-    int thread_id = omp_get_thread_num();
+    std::default_random_engine &engine = generators[omp_get_thread_num()];
+    std::uniform_real_distribution<double> &uniform = uniforms[omp_get_thread_num()];
 
-    double r1 = uniform(engine[thread_id]);
-    double r2 = uniform(engine[thread_id]);
+    double r1 = uniform(engine);
+    double r2 = uniform(engine);
     double s = sqrt(1 - r2); // Pour éviter de calculer 2 fois la racine
 
     double x = cos(2 * M_PI * r1) * s;
