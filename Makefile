@@ -1,5 +1,5 @@
 CXX = g++-11 # Compiler to use
-FLAGS = -fopenmp -g -fdiagnostics-color=always # Flags to pass
+FLAGS = -std=c++17 -O3 -fopenmp -g -fdiagnostics-color=always # Flags to pass
 
 TARGET_EXEC := main
 
