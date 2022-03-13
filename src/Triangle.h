@@ -64,8 +64,6 @@ public:
     BoundingBox get_bbox(int lower, int upper);
     void build_BVH(BVH *n, int tri_min, int tri_max);
     void init_BVH();
-
-    int nb_bvh = 0;
 };
 
 #endif
