@@ -10,8 +10,8 @@ RandomHelper::RandomHelper()
     std::random_device r;
     for (int i = 0, N = omp_get_max_threads(); i < N; ++i)
     {
-        this->generators.emplace_back(std::default_random_engine(r()));
-        this->uniforms.emplace_back(std::uniform_real_distribution<double>(0.0, 1.0));
+        this->generators.push_back(std::default_random_engine(r()));
+        this->uniforms.push_back(std::uniform_real_distribution<double>(0.0, 1.0));
     }
 }
 
