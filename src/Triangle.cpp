@@ -397,35 +397,35 @@ void TriangleMesh::readOBJ(const char *obj)
 
 void TriangleMesh::get_bbox()
 {
-    double xMin, xMax, yMin, yMax, zMin, zMax;
+    Vector bbmin(vertices[0][0], vertices[0][1], vertices[0][2]);
+    Vector bbmax(vertices[0][0], vertices[0][1], vertices[0][2]);
     for (int k = 0; k < vertices.size(); k++)
     {
-        xMin = std::min(xMin, vertices[k][0]);
-        xMax = std::max(xMax, vertices[k][0]);
-        yMin = std::min(yMin, vertices[k][1]);
-        yMax = std::max(yMax, vertices[k][1]);
-        zMin = std::min(zMin, vertices[k][2]);
-        zMax = std::max(zMax, vertices[k][2]);
+        for (int dim = 0; dim < 3; dim++)
+        {
+            bbmin[dim] = std::min(bbmin[dim], vertices[k][dim]);
+            bbmax[dim] = std::max(bbmax[dim], vertices[k][dim]);
+        }
     }
-    this->bbox.min = Vector(xMin, yMin, zMin);
-    this->bbox.max = Vector(xMax, yMax, zMax);
+    this->bbox.min = bbmin;
+    this->bbox.max = bbmax;
 }
 
 BoundingBox TriangleMesh::get_bbox(int lower, int upper)
 {
-    double xMin, xMax, yMin, yMax, zMin, zMax;
+    Vector bbmin(vertices[lower][0], vertices[lower][1], vertices[lower][2]);
+    Vector bbmax(vertices[lower][0], vertices[lower][1], vertices[lower][2]);
     TriangleIndices triangle;
     for (int k = lower; k < upper; k++)
     {
         triangle = indices[k];
-        xMin = std::min(xMin, std::min(vertices[triangle.vtxi][0], std::min(vertices[triangle.vtxj][0], vertices[triangle.vtxk][0])));
-        xMax = std::max(xMax, std::max(vertices[triangle.vtxi][0], std::max(vertices[triangle.vtxj][0], vertices[triangle.vtxk][0])));
-        yMin = std::min(yMin, std::min(vertices[triangle.vtxi][1], std::min(vertices[triangle.vtxj][1], vertices[triangle.vtxk][1])));
-        yMax = std::max(yMax, std::max(vertices[triangle.vtxi][1], std::max(vertices[triangle.vtxj][1], vertices[triangle.vtxk][1])));
-        zMin = std::min(zMin, std::min(vertices[triangle.vtxi][2], std::min(vertices[triangle.vtxj][2], vertices[triangle.vtxk][2])));
-        zMax = std::max(zMax, std::max(vertices[triangle.vtxi][2], std::max(vertices[triangle.vtxj][2], vertices[triangle.vtxk][2])));
+        for (int dim = 0; dim < 3; dim++)
+        {
+            bbmin[dim] = std::min(bbmin[dim], std::min(vertices[triangle.vtxi][dim], std::min(vertices[triangle.vtxj][dim], vertices[triangle.vtxk][dim])));
+            bbmax[dim] = std::max(bbmax[dim], std::max(vertices[triangle.vtxi][dim], std::max(vertices[triangle.vtxj][dim], vertices[triangle.vtxk][dim])));
+        }
     }
-    return BoundingBox(Vector(xMin, yMin, zMin), Vector(xMax, yMax, zMax));
+    return BoundingBox(bbmin, bbmax);
 }
 
 bool TriangleMesh::intersect(const Ray &r, Vector &P, Vector &N, double &t) const
@@ -657,7 +657,7 @@ void TriangleMesh::build_BVH(BVH *n, int lower, int upper)
         }
     }
 
-    if (pivot < lower || pivot >= upper - 1 || upper - lower <= 5)
+    if ((pivot <= lower) || (pivot >= upper - 1) || (upper - lower <= 5))
     {
         return;
     }

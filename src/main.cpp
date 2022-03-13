@@ -22,14 +22,14 @@
 
 #include "progressbar.hpp"
 
-#define INDIRECT_LIGHT true
-#define SOFT_SHADOWS true
+#define INDIRECT_LIGHT false
+#define SOFT_SHADOWS false
 #define NUM_RAYS_MC 64
-#define ANTIALIASING true
+#define ANTIALIASING false
 #define DEPTH_OF_FIELD false
 #define DDOF 55
 #define USE_BVH true
-#define NORMALS_INTERPOLATION true
+#define NORMALS_INTERPOLATION false
 
 int main(int argc, char *argv[])
 {
@@ -78,11 +78,20 @@ int main(int argc, char *argv[])
     // tri.scale(0.05, Vector(0, -10, 0));
 
     // Dog
+    // tri.readOBJ("mesh/dog/13463_Australian_Cattle_Dog_v3.obj");
+    // tri.rotate(0, 90);
+    // tri.rotate(1, -45);
+    // tri.scale(1, Vector(0, -10, 0));
 
     // Sheep
-    tri.readOBJ("mesh/sheep/sheep.obj");
-    tri.scale(10, Vector(0, -10, 0));
-    tri.rotate(1, 135);
+    // tri.readOBJ("mesh/sheep/sheep.obj");
+    // tri.scale(10, Vector(0, -10, 0));
+    // tri.rotate(1, 135);
+
+    // Car
+    tri.readOBJ("mesh/car/Shelby.obj");
+    tri.rotate(1, -45);
+    tri.scale(5, Vector(-5, -10, 0));
 
     tri.normals_interpolation = NORMALS_INTERPOLATION;
     if (USE_BVH)
@@ -120,7 +129,6 @@ int main(int argc, char *argv[])
 
     // scene.add(&s1);
     // scene.add(&s2);
-    // scene.add(&s3);
 
     scene.add(&tri);
 
@@ -134,8 +142,8 @@ int main(int argc, char *argv[])
     progressbar bar(H);
 
     auto start = std::chrono::high_resolution_clock::now();
-    std::vector<unsigned char> image(W * H * 3, 0);          // Crée un tableau 1D de W*H*3 éléments initialisés à 0 (l'image)
-#pragma omp parallel for schedule(dynamic, 1) num_threads(8) // Parallélisation du calcul, mettre un flag openmp à gcc. Ici on fait sur toutes les lignes de l'image
+    std::vector<unsigned char> image(W * H * 3, 0); // Crée un tableau 1D de W*H*3 éléments initialisés à 0 (l'image)
+#pragma omp parallel for schedule(dynamic, 1)       // Parallélisation du calcul, mettre un flag openmp à gcc. Ici on fait sur toutes les lignes de l'image
     for (int i = 0; i < H; i++)
     {
 #pragma omp critical
