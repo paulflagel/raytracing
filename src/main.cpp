@@ -29,7 +29,7 @@
 #define DEPTH_OF_FIELD false
 #define DDOF 55
 #define USE_BVH true
-#define NORMALS_INTERPOLATION false
+#define NORMALS_INTERPOLATION true
 
 int main(int argc, char *argv[])
 {
@@ -78,10 +78,10 @@ int main(int argc, char *argv[])
     // tri.scale(0.05, Vector(0, -10, 0));
 
     // Dog
-    // tri.readOBJ("mesh/dog/13463_Australian_Cattle_Dog_v3.obj");
-    // tri.rotate(0, 90);
-    // tri.rotate(1, -45);
-    // tri.scale(1, Vector(0, -10, 0));
+    tri.readOBJ("mesh/dog/13463_Australian_Cattle_Dog_v3.obj");
+    tri.rotate(0, 90);
+    tri.rotate(1, -45);
+    tri.scale(1, Vector(0, -10, 0));
 
     // Sheep
     // tri.readOBJ("mesh/sheep/sheep.obj");
@@ -89,9 +89,9 @@ int main(int argc, char *argv[])
     // tri.rotate(1, 135);
 
     // Car
-    tri.readOBJ("mesh/car/Shelby.obj");
-    tri.rotate(1, -45);
-    tri.scale(5, Vector(-5, -10, 0));
+    // tri.readOBJ("mesh/car/Shelby.obj");
+    // tri.rotate(1, -45);
+    // tri.scale(5, Vector(-5, -10, 0));
 
     tri.normals_interpolation = NORMALS_INTERPOLATION;
     if (USE_BVH)

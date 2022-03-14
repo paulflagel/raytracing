@@ -413,8 +413,8 @@ void TriangleMesh::get_bbox()
 
 BoundingBox TriangleMesh::get_bbox(int lower, int upper)
 {
-    Vector bbmin(vertices[lower][0], vertices[lower][1], vertices[lower][2]);
-    Vector bbmax(vertices[lower][0], vertices[lower][1], vertices[lower][2]);
+    Vector bbmin(vertices[indices[lower].vtxi][0], vertices[indices[lower].vtxi][1], vertices[indices[lower].vtxi][2]);
+    Vector bbmax(vertices[indices[lower].vtxi][0], vertices[indices[lower].vtxi][1], vertices[indices[lower].vtxi][2]);
     TriangleIndices triangle;
     for (int k = lower; k < upper; k++)
     {
@@ -500,8 +500,8 @@ bool TriangleMesh::intersect(const Ray &r, Vector &P, Vector &N, double &t) cons
                 }
             }
         }
+        return triangle_intersection;
     }
-    return triangle_intersection;
 }
 
 bool BoundingBox::intersect(const Ray &r) const
@@ -658,9 +658,7 @@ void TriangleMesh::build_BVH(BVH *n, int lower, int upper)
     }
 
     if ((pivot <= lower) || (pivot >= upper - 1) || (upper - lower <= 5))
-    {
         return;
-    }
 
     n->left_child = new BVH;
     n->right_child = new BVH;
