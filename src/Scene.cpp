@@ -15,16 +15,17 @@ Scene::~Scene() {}
 
 void Scene::add(Object *obj) { objects_list.push_back(obj); } // Ajoute la sphere à la fin de la liste
 
-bool Scene::intersect(const Ray &r, Vector &P, Vector &N, int &sphere_id, double &distance_min) // Check si une sphère est intersectée, si oui renvoie la plus proche
+bool Scene::intersect(const Ray &r, Vector &P, Vector &N, int &sphere_id, double &distance_min, Vector &albedo) // Check si une sphère est intersectée, si oui renvoie la plus proche
 {
     distance_min = 1E99;
     bool scene_intersection = false; // Est-ce que la scène possède au moins une intersection
     for (int k = 0; k < objects_list.size(); k++)
     {
         Vector Pobject, Nobject;
+        Vector albedoObject;
         double local_distance;
 
-        bool local_intersection = objects_list[k]->intersect(r, Pobject, Nobject, local_distance);
+        bool local_intersection = objects_list[k]->intersect(r, Pobject, Nobject, local_distance, albedoObject);
         if (local_intersection)
         {
             scene_intersection = true;
@@ -34,6 +35,7 @@ bool Scene::intersect(const Ray &r, Vector &P, Vector &N, int &sphere_id, double
                 P = Pobject;
                 N = Nobject;
                 sphere_id = k;
+                albedo = albedoObject;
             }
         }
     }
@@ -47,11 +49,14 @@ Vector Scene::getColor(Ray &r, int rebond, bool showLight) // Renvoie l'intensit
         return Vector(0., 0., 0.);
     }
 
-    Vector P, n;   // Point d'intersection rayon/sphère et vecteur normal à la surface en P
-    int id_sphere; // Id de la sphère intersectée
-    double t;      // distance entre la caméra et l'intersection
+    Vector P, n, albedo; // Point d'intersection rayon/sphère et vecteur normal à la surface en P
+    int id_sphere;       // Id de la sphère intersectée
+    double t;            // distance entre la caméra et l'intersection
+    bool intersection_bool = this->intersect(r, P, n, id_sphere, t, albedo);
 
-    if (this->intersect(r, P, n, id_sphere, t))
+    Vector color; // Intensité de la lumière
+
+    if (intersection_bool)
     {
         Object *oCurrent = objects_list[id_sphere]; // Sphere intersectée
 
@@ -108,12 +113,10 @@ Vector Scene::getColor(Ray &r, int rebond, bool showLight) // Renvoie l'intensit
         // SURFACE DIFFUSE :
         else
         {
-            Vector color; // Intensité de la lumière
-
             // ECLAIRAGE DIRECT
 
             // Grandeurs calculées pour l'ombre portée
-            Vector Plum, nlum;
+            Vector Plum, nlum, albedoLum;
             double tlum;
             int idlum;
 
@@ -130,7 +133,7 @@ Vector Scene::getColor(Ray &r, int rebond, bool showLight) // Renvoie l'intensit
                 double distlum2 = (x_random - P).norm2();
 
                 // Calcul d'ombre portée : on regarde s'il y a un obstacle entre le point et la lumière
-                if (this->intersect(Ray(P + (EPSILON * n), omega_i), Plum, nlum, idlum, tlum) && tlum * tlum < distlum2 * 0.99)
+                if (this->intersect(Ray(P + (EPSILON * n), omega_i), Plum, nlum, idlum, tlum, albedoLum) && tlum * tlum < distlum2 * 0.99)
                 {
                     // Ombre portée
                     color = Vector(0., 0., 0.);
@@ -138,7 +141,7 @@ Vector Scene::getColor(Ray &r, int rebond, bool showLight) // Renvoie l'intensit
                 else
                 {
                     double pdf = std::max(0., dot(v, omega_random)) / M_PI / (this->Light->R * this->Light->R);
-                    Vector BRDF = oCurrent->albedo / M_PI;
+                    Vector BRDF = albedo / M_PI;
                     double jacobien = std::max(0., dot(-omega_i, omega_random)) / distlum2;
                     color = this->I / (4 * M_PI * this->Light->R * this->Light->R * M_PI) * std::max(0., dot(n, omega_i)) * BRDF * jacobien / pdf;
                 }
@@ -149,13 +152,13 @@ Vector Scene::getColor(Ray &r, int rebond, bool showLight) // Renvoie l'intensit
                 Vector l = this->Light->O - P;
                 double distlum = l.norm();
                 l.normalize();
-                if (this->intersect(Ray(P + (EPSILON * n), l), Plum, nlum, idlum, tlum) && tlum < distlum - this->Light->R - EPSILON)
+                if (this->intersect(Ray(P + (EPSILON * n), l), Plum, nlum, idlum, tlum, albedoLum) && tlum < distlum - this->Light->R - EPSILON)
                 {
                     color = Vector(0., 0., 0.);
                 }
                 else
                 {
-                    Vector BRDF = oCurrent->albedo / M_PI;
+                    Vector BRDF = albedo / M_PI;
                     color = this->I / (4 * M_PI * distlum * distlum) * std::max(0., dot(l, n)) * BRDF;
                 }
             }
@@ -165,7 +168,7 @@ Vector Scene::getColor(Ray &r, int rebond, bool showLight) // Renvoie l'intensit
             {
                 Vector random_u = randh.random_cos(n);
                 Ray rRandom(P + (EPSILON * n), random_u);
-                color = color + oCurrent->albedo * this->getColor(rRandom, rebond - 1);
+                color = color + albedo * this->getColor(rRandom, rebond - 1);
             }
             return color;
         }

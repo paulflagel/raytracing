@@ -14,8 +14,9 @@ Sphere::Sphere(const Vector &origin, double radius, const Vector &albedo, bool i
 
 Sphere::~Sphere() {}
 
-bool Sphere::intersect(const Ray &r, Vector &P, Vector &N, double &t) const // Tester si la sphère est sur la trajectoire
+bool Sphere::intersect(const Ray &r, Vector &P, Vector &N, double &t, Vector &color) const // Tester si la sphère est sur la trajectoire
 {
+    color = this->albedo;
     // On résoud l'équation du second degré a*T^2 + b*t + c = 0
     double a = 1;
     double b = 2 * dot(r.u, r.C - O);

@@ -22,10 +22,10 @@
 
 #include "progressbar.hpp"
 
-#define INDIRECT_LIGHT false
-#define SOFT_SHADOWS false
-#define NUM_RAYS_MC 64
-#define ANTIALIASING false
+#define INDIRECT_LIGHT true
+#define SOFT_SHADOWS true
+#define NUM_RAYS_MC 32
+#define ANTIALIASING true
 #define DEPTH_OF_FIELD false
 #define DDOF 55
 #define USE_BVH true
@@ -38,9 +38,9 @@ int main(int argc, char *argv[])
 
     Vector C(0, 0, 55);           // Camera
     Vector L(-10, 20, 40);        // Source de lumière
-    double fov = 60 * M_PI / 180; // Field of view 60°
+    double fov = 80 * M_PI / 180; // Field of view 60°
     double tanfov2 = tan(fov / 2);
-    double I = 5E10;         // Intensité de la lumière (en Watts)
+    double I = 1E10;         // Intensité de la lumière (en Watts)
     int nb_rays_monte_carlo; // Nombre de rayons envoyés pour Monte Carlo (error decreases in 1/sqrt(N))
     if (INDIRECT_LIGHT || SOFT_SHADOWS || ANTIALIASING)
         nb_rays_monte_carlo = NUM_RAYS_MC;
@@ -65,6 +65,8 @@ int main(int argc, char *argv[])
     // ========== Load mesh ==========
 
     TriangleMesh tri(Vector(0.4, 0.1, 0.1), false, false);
+    TriangleMesh tri2(Vector(0.4, 0.1, 0.1), false, false);
+    TriangleMesh tri3(Vector(0.4, 0.1, 0.1), false, false);
 
     // Girl
     // tri.readOBJ("mesh/girl/Beautiful Girl.obj");
@@ -78,10 +80,11 @@ int main(int argc, char *argv[])
     // tri.scale(0.05, Vector(0, -10, 0));
 
     // Dog
-    tri.readOBJ("mesh/dog/13463_Australian_Cattle_Dog_v3.obj");
-    tri.rotate(0, 90);
-    tri.rotate(1, -45);
-    tri.scale(1, Vector(0, -10, 0));
+    // tri.readOBJ("mesh/dog/13463_Australian_Cattle_Dog_v3.obj");
+    // tri.load_texture("mesh/dog/Australian_Cattle_Dog_dif.jpg");
+    // tri.rotate(0, 90);
+    // tri.rotate(1, -45);
+    // tri.scale(1, Vector(0, -10, 0));
 
     // Sheep
     // tri.readOBJ("mesh/sheep/sheep.obj");
@@ -93,12 +96,45 @@ int main(int argc, char *argv[])
     // tri.rotate(1, -45);
     // tri.scale(5, Vector(-5, -10, 0));
 
+    // Final scene
+    tri.readOBJ("mesh/saturn/13906_Saturn_v1_l3.obj");
+    tri.load_texture("mesh/saturn/Saturn_diff.jpg");
+    tri.rotate(0, 90);
+    tri.rotate(2, -45);
+    tri.rotate(0, -20);
+    tri.scale(0.04, Vector(15, 10, -10));
+
+    tri2.readOBJ("mesh/satellite/Satellite.obj");
+    tri2.load_texture("mesh/satellite/Textures/satellite_Antenna_BaseColor.jpg");
+    tri2.load_texture("mesh/satellite/Textures/satellite_Satélite_BaseColor.jpg");
+    tri2.load_texture("mesh/satellite/Textures/satellite_Pinos_BaseColor.jpg");
+    tri2.load_texture("mesh/satellite/Textures/satellite_Placas_BaseColor.jpg");
+    tri2.load_texture("mesh/satellite/Textures/satellite_Couro_BaseColor.jpg");
+
+    tri2.rotate(0, -25);
+    tri2.rotate(1, 45);
+    tri2.rotate(0, -20);
+    tri2.scale(3, Vector(-10, 20, 0));
+
+    tri3.readOBJ("mesh/rocket/10475_Rocket_Ship_v1_L3.obj");
+    tri3.load_texture("mesh/rocket/10475_Rocket_Ship_v1_Diffuse.jpg");
+    tri3.rotate(1, -90);
+    tri3.rotate(2, -45);
+    tri3.rotate(1, -30);
+    tri3.scale(0.04, Vector(-20, -5, 20));
+
     tri.normals_interpolation = NORMALS_INTERPOLATION;
+    tri2.normals_interpolation = NORMALS_INTERPOLATION;
+    tri3.normals_interpolation = NORMALS_INTERPOLATION;
     if (USE_BVH)
     {
         tri.use_bvh = USE_BVH;
+        tri2.use_bvh = USE_BVH;
+        tri3.use_bvh = USE_BVH;
         std::cout << "Init BVH..." << std::endl;
         tri.init_BVH();
+        tri2.init_BVH();
+        tri3.init_BVH();
         std::cout << "Init BVH done" << std::endl;
     }
     else
@@ -131,13 +167,15 @@ int main(int argc, char *argv[])
     // scene.add(&s2);
 
     scene.add(&tri);
+    scene.add(&tri2);
+    scene.add(&tri3);
 
     scene.add(&sFront);
     scene.add(&sBack);
     scene.add(&sUp);
     scene.add(&sDown);
-    scene.add(&sRight);
-    scene.add(&sLeft);
+    // scene.add(&sRight);
+    // scene.add(&sLeft);
 
     progressbar bar(H);
 

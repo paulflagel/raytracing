@@ -7,6 +7,8 @@
 #include <cmath>
 #include <list>
 
+#include "stb_image.h"
+
 #include "Vector.h"
 #include "Triangle.h"
 
@@ -428,7 +430,7 @@ BoundingBox TriangleMesh::get_bbox(int lower, int upper)
     return BoundingBox(bbmin, bbmax);
 }
 
-bool TriangleMesh::intersect(const Ray &r, Vector &P, Vector &N, double &t) const
+bool TriangleMesh::intersect(const Ray &r, Vector &P, Vector &N, double &t, Vector &color) const
 {
     t = 1E99; // distance au triangle le plus proche
     bool triangle_intersection = false;
@@ -460,7 +462,8 @@ bool TriangleMesh::intersect(const Ray &r, Vector &P, Vector &N, double &t) cons
                 {
                     double t_intersect;
                     Vector Ptriangle, Ntriangle;
-                    if (intersect_with_triangle(indices[k], r, Ptriangle, Ntriangle, t_intersect))
+                    double alpha, beta, gamma;
+                    if (intersect_with_triangle(indices[k], r, Ptriangle, Ntriangle, t_intersect, alpha, beta, gamma))
                     {
                         triangle_intersection = true;
                         if (t_intersect < t)
@@ -468,6 +471,56 @@ bool TriangleMesh::intersect(const Ray &r, Vector &P, Vector &N, double &t) cons
                             t = t_intersect;
                             P = Ptriangle;
                             N = Ntriangle;
+
+                            if (textures.size() > 0)
+                            {
+                                // int H, W;
+                                // if (textures.size() == 1)
+                                // {
+                                //     H = Htex[0];
+                                //     W = Wtex[0];
+                                // }
+                                // else
+                                // {
+                                //     H = Htex[indices[k].group];
+                                //     W = Wtex[indices[k].group];
+                                // }
+
+                                int H = Htex[0],
+                                    W = Wtex[0];
+
+                                Vector UV = alpha * uvs[indices[k].uvi] + beta * uvs[indices[k].uvj] + gamma * uvs[indices[k].uvk];
+                                UV = UV * Vector(W, H, 0);
+                                int uvx = UV[0] + 0.5;
+                                int uvy = UV[1] + 0.5;
+                                if (W > 0 && H > 0)
+                                {
+                                    uvx = uvx % W;
+                                    uvy = uvy % H;
+                                    if (uvx < 0)
+                                        uvx += W;
+                                    if (uvy < 0)
+                                        uvy += H;
+                                    uvy = H - uvy - 1;
+
+                                    if (textures.size() == 1)
+                                    {
+                                        color = Vector(std::pow(textures[0][(uvy * W + uvx) * 3] / 255., 2.2),
+                                                       std::pow(textures[0][(uvy * W + uvx) * 3 + 1] / 255., 2.2),
+                                                       std::pow(textures[0][(uvy * W + uvx) * 3 + 2] / 255., 2.2));
+                                    }
+                                    else
+                                    {
+                                        color = Vector(std::pow(textures[indices[k].group][(uvy * W + uvx) * 3] / 255., 2.2),
+                                                       std::pow(textures[indices[k].group][(uvy * W + uvx) * 3 + 1] / 255., 2.2),
+                                                       std::pow(textures[indices[k].group][(uvy * W + uvx) * 3 + 2] / 255., 2.2));
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                color = albedo;
+                            }
                         }
                     }
                 }
@@ -489,7 +542,8 @@ bool TriangleMesh::intersect(const Ray &r, Vector &P, Vector &N, double &t) cons
         {
             double t_intersect;
             Vector Ptriangle, Ntriangle;
-            if (intersect_with_triangle(indices[k], r, Ptriangle, Ntriangle, t_intersect))
+            double alpha, beta, gamma;
+            if (intersect_with_triangle(indices[k], r, Ptriangle, Ntriangle, t_intersect, alpha, beta, gamma))
             {
                 triangle_intersection = true;
                 if (t_intersect < t)
@@ -497,6 +551,22 @@ bool TriangleMesh::intersect(const Ray &r, Vector &P, Vector &N, double &t) cons
                     t = t_intersect;
                     P = Ptriangle;
                     N = Ntriangle;
+                    int H = Htex[indices[k].group];
+                    int W = Wtex[indices[k].group];
+                    Vector UV = alpha * uvs[indices[k].uvi] + beta * uvs[indices[k].uvj] + gamma * uvs[indices[k].uvk];
+                    UV = UV * Vector(W, H, 0);
+                    int uvx = UV[0] + 0.5;
+                    int uvy = UV[1] + 0.5;
+                    uvx = uvx % W;
+                    uvy = uvy % H;
+                    if (uvx < 0)
+                        uvx += W;
+                    if (uvy < 0)
+                        uvy += H;
+                    uvy = H - uvy - 1;
+                    color = Vector(std::pow(textures[indices[k].group][(uvy * W + uvx) * 3] / 255., 2.2),
+                                   std::pow(textures[indices[k].group][(uvy * W + uvx) * 3 + 1] / 255., 2.2),
+                                   std::pow(textures[indices[k].group][(uvy * W + uvx) * 3 + 2] / 255., 2.2));
                 }
             }
         }
@@ -531,7 +601,7 @@ bool BoundingBox::intersect(const Ray &r) const
     return false;
 }
 
-bool TriangleMesh::intersect_with_triangle(const TriangleIndices &triangle, const Ray &ray, Vector &P, Vector &N, double &t) const
+bool TriangleMesh::intersect_with_triangle(const TriangleIndices &triangle, const Ray &ray, Vector &P, Vector &N, double &t, double &alpha, double &beta, double &gamma) const
 {
     // Points du triangle
     Vector vertice_i = vertices[triangle.vtxi];
@@ -547,9 +617,9 @@ bool TriangleMesh::intersect_with_triangle(const TriangleIndices &triangle, cons
     Vector i_to_origin_cross_u = cross(i_to_origin, ray.u);
     double u_dot_n = dot(ray.u, N);
 
-    double beta = -dot(e_2, i_to_origin_cross_u) / u_dot_n;
-    double gamma = +dot(e_1, i_to_origin_cross_u) / u_dot_n;
-    double alpha = 1. - beta - gamma;
+    beta = -dot(e_2, i_to_origin_cross_u) / u_dot_n;
+    gamma = +dot(e_1, i_to_origin_cross_u) / u_dot_n;
+    alpha = 1. - beta - gamma;
     t = -dot(i_to_origin, N) / u_dot_n;
     if (!(0 <= alpha && alpha <= 1 && 0 <= beta && beta <= 1 && 0 <= gamma && gamma <= 1 && t >= 0))
     {
@@ -565,30 +635,8 @@ bool TriangleMesh::intersect_with_triangle(const TriangleIndices &triangle, cons
         Vector nk = normals[triangle.nk];
         N = (ni * alpha) + (ni * beta) + (nk * gamma);
     }
-    // N = -N;
     N.normalize();
     return true;
-}
-
-void TriangleMesh::swapAxis(int axis1, int axis2)
-{
-    for (int k = 0; k < normals.size(); k++)
-    {
-        std::swap(normals[k][axis1], normals[k][axis2]);
-    }
-
-    for (int k = 0; k < vertices.size(); k++)
-    {
-        std::swap(vertices[k][axis1], vertices[k][axis2]);
-    }
-}
-
-void TriangleMesh::invertNormals()
-{
-    for (int k = 0; k < normals.size(); k++)
-    {
-        normals[k] = (-1) * normals[k];
-    }
 }
 
 void TriangleMesh::scale(float factor, Vector offset)
@@ -669,4 +717,13 @@ void TriangleMesh::build_BVH(BVH *n, int lower, int upper)
 void TriangleMesh::init_BVH()
 {
     build_BVH(&bvh, 0, indices.size());
+}
+
+void TriangleMesh::load_texture(const char *filename)
+{
+    int W, H, C;
+    unsigned char *texture = stbi_load(filename, &W, &H, &C, 3);
+    Wtex.push_back(W);
+    Htex.push_back(H);
+    textures.push_back(texture);
 }

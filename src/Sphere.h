@@ -11,7 +11,7 @@ public:
     Sphere(const Vector &origin, double radius, const Vector &albedo, bool isMirror = false, bool isTransp = false, bool isLight = false, double refraction_index = 1.4);
     ~Sphere();
 
-    virtual bool intersect(const Ray &r, Vector &P, Vector &N, double &t) const;
+    virtual bool intersect(const Ray &r, Vector &P, Vector &N, double &t, Vector &color) const;
 
     Vector O;
     double R;

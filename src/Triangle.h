@@ -41,8 +41,8 @@ public:
 
     void readOBJ(const char *obj);
 
-    virtual bool intersect(const Ray &r, Vector &P, Vector &N, double &t) const;
-    bool intersect_with_triangle(const TriangleIndices &triangle, const Ray &ray, Vector &P, Vector &N, double &t) const;
+    virtual bool intersect(const Ray &r, Vector &P, Vector &N, double &t, Vector &color) const;
+    bool intersect_with_triangle(const TriangleIndices &triangle, const Ray &ray, Vector &P, Vector &N, double &t, double &alpha, double &beta, double &gamma) const;
 
     std::vector<TriangleIndices> indices; // Indices des sommets qui constituent chaque face
     std::vector<Vector> vertices;         // Coordonnées des sommets
@@ -52,8 +52,6 @@ public:
 
     BoundingBox bbox;
     void get_bbox();
-    void swapAxis(int axis1, int axis2);
-    void invertNormals();
     void scale(float factor, Vector offset = Vector(0., 0., 0.));
     void rotate(int axis, double angle);
 
@@ -64,6 +62,10 @@ public:
     BoundingBox get_bbox(int lower, int upper);
     void build_BVH(BVH *n, int tri_min, int tri_max);
     void init_BVH();
+
+    std::vector<unsigned char *> textures;
+    std::vector<int> Wtex, Htex;
+    void load_texture(const char *filename);
 };
 
 #endif
