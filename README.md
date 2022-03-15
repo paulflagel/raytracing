@@ -8,11 +8,11 @@ cd raytracing
 make
 ```
 
-This will generate a `build` directory and the `raytracer` executable.
+This will generate a `build` directory and the `main` executable.
 
 Run it :
 ```
-./raytracer
+src/main
 ```
 
 A file `image.png` is generated. 
