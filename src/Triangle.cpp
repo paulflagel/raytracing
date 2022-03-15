@@ -486,15 +486,19 @@ bool TriangleMesh::intersect(const Ray &r, Vector &P, Vector &N, double &t, Vect
                                 //     W = Wtex[indices[k].group];
                                 // }
 
+                                // Taille de l'image contenant les textures
                                 int H = Htex[0],
                                     W = Wtex[0];
 
-                                Vector UV = alpha * uvs[indices[k].uvi] + beta * uvs[indices[k].uvj] + gamma * uvs[indices[k].uvk];
-                                UV = UV * Vector(W, H, 0);
-                                int uvx = UV[0] + 0.5;
-                                int uvy = UV[1] + 0.5;
+                                // On interpole la couleur du triangle
+                                Vector uv = alpha * uvs[indices[k].uvi] + beta * uvs[indices[k].uvj] + gamma * uvs[indices[k].uvk];
+                                uv = uv * Vector(W, H, 0);
+                                // Coordonnées
+                                int uvx = uv[0] + 0.5;
+                                int uvy = uv[1] + 0.5;
                                 if (W > 0 && H > 0)
                                 {
+                                    // Recalage des coordonnées en cas de pb de modulo
                                     uvx = uvx % W;
                                     uvy = uvy % H;
                                     if (uvx < 0)
@@ -503,6 +507,7 @@ bool TriangleMesh::intersect(const Ray &r, Vector &P, Vector &N, double &t, Vect
                                         uvy += H;
                                     uvy = H - uvy - 1;
 
+                                    // Gestion des exceptions avec les textures
                                     if (textures.size() == 1)
                                     {
                                         color = Vector(std::pow(textures[0][(uvy * W + uvx) * 3] / 255., 2.2),
