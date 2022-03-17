@@ -1,5 +1,7 @@
 # Raytracing
 
+![](anim.gif)
+
 ## Getting started
 Clone this repo and
 
