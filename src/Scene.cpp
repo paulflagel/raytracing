@@ -150,16 +150,16 @@ Vector Scene::getColor(Ray &r, int rebond, bool showLight) // Renvoie l'intensit
             else
             {
                 Vector l = this->Light->O - P;
-                double distlum = l.norm();
+                double distlum2 = l.norm2();
                 l.normalize();
-                if (this->intersect(Ray(P + (EPSILON * n), l), Plum, nlum, idlum, tlum, albedoLum) && tlum < distlum - this->Light->R - EPSILON)
+                if (this->intersect(Ray(P + (EPSILON * n), l), Plum, nlum, idlum, tlum, albedoLum) && (tlum + this->Light->R) * (tlum + this->Light->R) < distlum2 * 0.99)
                 {
                     color = Vector(0., 0., 0.);
                 }
                 else
                 {
                     Vector BRDF = albedo / M_PI;
-                    color = this->I / (4 * M_PI * distlum * distlum) * std::max(0., dot(l, n)) * BRDF;
+                    color = this->I / (4 * M_PI * distlum2) * std::max(0., dot(l, n)) * BRDF;
                 }
             }
 

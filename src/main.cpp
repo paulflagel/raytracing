@@ -10,6 +10,7 @@
 #include <iostream>
 #include <cmath>
 #include <chrono>
+#include <string>
 #include "omp.h"
 
 #include "Vector.h"
@@ -24,12 +25,17 @@
 
 #define INDIRECT_LIGHT true
 #define SOFT_SHADOWS true
-#define NUM_RAYS_MC 32
+#define NUM_RAYS_MC 128
 #define ANTIALIASING true
 #define DEPTH_OF_FIELD false
 #define DDOF 55
 #define USE_BVH true
 #define NORMALS_INTERPOLATION true
+
+void print(Vector a)
+{
+    std::cout << a[0] << " " << a[1] << " " << a[2] << std::endl;
+}
 
 int main(int argc, char *argv[])
 {
@@ -110,7 +116,6 @@ int main(int argc, char *argv[])
     tri2.load_texture("mesh/satellite/Textures/satellite_Pinos_BaseColor.jpg");
     tri2.load_texture("mesh/satellite/Textures/satellite_Placas_BaseColor.jpg");
     tri2.load_texture("mesh/satellite/Textures/satellite_Couro_BaseColor.jpg");
-
     tri2.rotate(0, -25);
     tri2.rotate(1, 45);
     tri2.rotate(0, -20);
@@ -119,6 +124,7 @@ int main(int argc, char *argv[])
     tri3.readOBJ("mesh/rocket/10475_Rocket_Ship_v1_L3.obj");
     tri3.load_texture("mesh/rocket/10475_Rocket_Ship_v1_Diffuse.jpg");
     tri3.rotate(1, -90);
+    tri3.rotate(0, 180);
     tri3.rotate(2, -45);
     tri3.rotate(1, -30);
     tri3.scale(0.04, Vector(-20, -5, 20));
@@ -150,7 +156,7 @@ int main(int argc, char *argv[])
     // Sphere sRight(Vector(1000, 0, 0), 940, Vector(0.5, 0.5, 0.5)); // Mur droit
     // Sphere sLeft(Vector(-1000, 0, 0), 940, Vector(0.5, 0.5, 0.5)); // Mur gauche
 
-    Vector albedo_spheres = Vector(0.4, 0.4, 0.4);
+    Vector albedo_spheres = Vector(0.5, 0.5, 0.6);
 
     Sphere sBack(Vector(0, 0, -1000), 940, albedo_spheres); // Sphère derrière la boule
     Sphere sFront(Vector(0, 0, 1000), 940, albedo_spheres); // Sphère derrière la caméra
@@ -177,48 +183,69 @@ int main(int argc, char *argv[])
     // scene.add(&sRight);
     // scene.add(&sLeft);
 
-    progressbar bar(H);
+    const int dTheta = 3; // Degrés de décalage
+    const int nb_images = 360 / dTheta;
+    progressbar bar(H * nb_images);
 
     auto start = std::chrono::high_resolution_clock::now();
-    std::vector<unsigned char> image(W * H * 3, 0); // Crée un tableau 1D de W*H*3 éléments initialisés à 0 (l'image)
-#pragma omp parallel for schedule(dynamic, 1)       // Parallélisation du calcul, mettre un flag openmp à gcc. Ici on fait sur toutes les lignes de l'image
-    for (int i = 0; i < H; i++)
+
+    for (int l = 0; l < nb_images; l++)
     {
-#pragma omp critical
-        bar.update();
-        for (int j = 0; j < W; j++)
+        double angle = dTheta * l * M_PI / 180; // on va de 0 à 45°
+        double cosinus = cos(angle);
+        double sinus = sin(angle);
+        C[0] = 55 * sinus;
+        C[1] = 10 * sinus;
+        C[2] = 55 * cosinus;
+
+        std::vector<unsigned char> image(W * H * 3, 0); // Crée un tableau 1D de W*H*3 éléments initialisés à 0 (l'image)
+#pragma omp parallel for schedule(dynamic, 1)           // Parallélisation du calcul, mettre un flag openmp à gcc. Ici on fait sur toutes les lignes de l'image
+        for (int i = 0; i < H; i++)
         {
-            Vector intensity;
-            for (int k = 0; k < nb_rays_monte_carlo; k++)
+#pragma omp critical
+            bar.update();
+            for (int j = 0; j < W; j++)
             {
-                Vector dPixel;
-                if (ANTIALIASING)
-                    dPixel = randh.box_muller(0.3);
-                Vector u(j - W / 2 + 0.5 + dPixel[0], (H - i) - (H / 2) + 0.5 + dPixel[1], -W / (2 * tanfov2));
-                u.normalize();
-                Ray r(C, u);
-
-                if (DEPTH_OF_FIELD)
+                Vector intensity;
+                for (int k = 0; k < nb_rays_monte_carlo; k++)
                 {
-                    // Profondeur de champ
-                    Vector dAperture = randh.box_muller(1.);
-                    Vector Cprime = C + dAperture;
-                    Vector uprime = C + ddof / abs(u[2]) * u - Cprime;
-                    uprime.normalize();
-                    r = Ray(Cprime, uprime); // Rayon issu de C dans la direction u
+                    Vector dPixel;
+                    if (ANTIALIASING)
+                        dPixel = randh.box_muller(0.3);
+                    Vector u(j - W / 2 + 0.5 + dPixel[0], (H - i) - (H / 2) + 0.5 + dPixel[1], -W / (2 * tanfov2));
+                    u.normalize();
+
+                    // Rotation
+                    double u0 = u[0];
+                    double u2 = u[2];
+                    u[0] = u0 * cosinus + u2 * sinus;
+                    u[2] = -u0 * sinus + u2 * cosinus;
+                    u.normalize();
+                    Ray r(C, u);
+
+                    if (DEPTH_OF_FIELD)
+                    {
+                        // Profondeur de champ
+                        Vector dAperture = randh.box_muller(1.);
+                        Vector Cprime = C + dAperture;
+                        Vector uprime = C + ddof / abs(u[2]) * u - Cprime;
+                        uprime.normalize();
+                        r = Ray(Cprime, uprime); // Rayon issu de C dans la direction u
+                    }
+
+                    intensity = intensity + scene.getColor(r, rebonds, true);
                 }
+                intensity = intensity / nb_rays_monte_carlo;
 
-                intensity = intensity + scene.getColor(r, rebonds, true);
+                image[(i * W + j) * 3 + 0] = std::min(255., std::pow(intensity[0], 1 / 2.2)); // R - La puissance 1/2.2 correspond à la correction gamma
+                image[(i * W + j) * 3 + 1] = std::min(255., std::pow(intensity[1], 1 / 2.2)); // G
+                image[(i * W + j) * 3 + 2] = std::min(255., std::pow(intensity[2], 1 / 2.2)); // B
             }
-            intensity = intensity / nb_rays_monte_carlo;
-
-            image[(i * W + j) * 3 + 0] = std::min(255., std::pow(intensity[0], 1 / 2.2)); // R - La puissance 1/2.2 correspond à la correction gamma
-            image[(i * W + j) * 3 + 1] = std::min(255., std::pow(intensity[1], 1 / 2.2)); // G
-            image[(i * W + j) * 3 + 2] = std::min(255., std::pow(intensity[2], 1 / 2.2)); // B
         }
+        std::string s = "output/img" + std::to_string(l) + ".png";
+        const char *c = s.c_str();
+        stbi_write_png(c, W, H, 3, &image[0], 0);
     }
-
-    stbi_write_png("image.png", W, H, 3, &image[0], 0);
     auto end = std::chrono::high_resolution_clock::now();
     auto diff = end - start;
     auto diff_sec = std::chrono::duration_cast<std::chrono::milliseconds>(diff);
