@@ -24,6 +24,7 @@ public:
 
     bool indirect_light = true;
     bool soft_shadows = true;
+    bool fresnel = true;
 
     RandomHelper randh;
 };

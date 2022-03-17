@@ -94,11 +94,15 @@ Vector Scene::getColor(Ray &r, int rebond, bool showLight) // Renvoie l'intensit
 
             double normal_sqrt_term = 1 - (n1 / n2) * (n1 / n2) * (1 - dot_incident_normal * dot_incident_normal);
 
-            if (normal_sqrt_term < 0) // Réflexion totale
+            double k0 = ((n1 - n2) / (n1 + n2)) * ((n1 - n2) / (n1 + n2));
+            double R = k0 + (1 - k0) * std::pow(1 + dot_incident_normal, 5);
+            bool is_fresnel = fresnel && (randh.random_double() < R);
+
+            if (normal_sqrt_term < 0 || is_fresnel) // Réflexion totale
             {
                 Vector uReflected = r.u - 2 * dot(r.u, n) * n;
                 Ray rReflected(P + (EPSILON * n), uReflected);
-                return this->getColor(rReflected, rebond - 1);
+                return this->getColor(rReflected, rebond - 1, showLight);
             }
             else
             {

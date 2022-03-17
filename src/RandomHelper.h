@@ -14,6 +14,7 @@ public:
     void init_helper();
     Vector box_muller(float sigma = 1);
     Vector random_cos(Vector &N);
+    double random_double();
 };
 
 #endif

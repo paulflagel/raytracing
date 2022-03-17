@@ -61,3 +61,11 @@ Vector RandomHelper::random_cos(Vector &N) // Retourne omega_i
     Vector T2 = cross(N, T1);
     return x * T1 + y * T2 + z * N;
 }
+
+double RandomHelper::random_double()
+{
+    std::default_random_engine &engine = generators[omp_get_thread_num()];
+    std::uniform_real_distribution<double> &uniform = uniforms[omp_get_thread_num()];
+
+    return uniform(engine);
+}
