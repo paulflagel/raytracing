@@ -27,7 +27,6 @@ make clean
 ```
 
 ## Troubleshooting
-- If the compiler `g++-11` isn't suppported on your machine, change it in the makefile .
-- Depending on your machine's specs, the number of threads used for parallelization may vary (8 here). I had to hardcode it in `src/RandomHelper/RandomHelper.cpp` to create a thread-safe helper function. You can also change it.
+- If the compiler `g++-11` isn't suppported on your machine, change it in the makefile. It is the only one allowing me to run natively openMP on a MacBook M1. 
 
 Else, open an issue !
