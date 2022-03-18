@@ -1,6 +1,6 @@
 # Raytracing
 
-Final animation :
+Final animation (render time : 20000s for 120 images, 512x512, 128 rays/pixel) :
 
 ![](anim.gif)
 
