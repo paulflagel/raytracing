@@ -6,6 +6,10 @@ Final animation (render time : 5h30 for 120 images, 512x512, 128 rays/pixel) :
 
 ![](anim.gif)
 
+Meshes (need to be UV mapped for textures) :
+- https://free3d.com/3d-model/small-satellite-308237.html
+- https://free3d.com/3d-model/saturn-v1--741827.html
+- https://free3d.com/3d-model/rocket-ship-v1--579030.html
 
 ## Getting started
 Clone this repo and
