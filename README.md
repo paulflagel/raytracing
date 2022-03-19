@@ -1,6 +1,8 @@
 # Raytracing
 
-Final animation (render time : 20000s for 120 images, 512x512, 128 rays/pixel) :
+[FINAL REPORT](./rapport.pdf)
+___
+Final animation (render time : 5h30 for 120 images, 512x512, 128 rays/pixel) :
 
 ![](anim.gif)
 
