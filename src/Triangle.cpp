@@ -638,7 +638,7 @@ bool TriangleMesh::intersect_with_triangle(const TriangleIndices &triangle, cons
         Vector ni = normals[triangle.ni];
         Vector nj = normals[triangle.nj];
         Vector nk = normals[triangle.nk];
-        N = (ni * alpha) + (ni * beta) + (nk * gamma);
+        N = (ni * alpha) + (nj * beta) + (nk * gamma);
     }
     N.normalize();
     return true;

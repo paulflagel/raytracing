@@ -25,7 +25,7 @@
 
 #define INDIRECT_LIGHT true
 #define SOFT_SHADOWS true
-#define NUM_RAYS_MC 256
+#define NUM_RAYS_MC 128
 #define ANTIALIASING true
 #define DEPTH_OF_FIELD false
 #define DDOF 55
@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
     Vector L(-10, 20, 40);        // Light source
     double fov = 80 * M_PI / 180; // Field of view 60°
     double tanfov2 = tan(fov / 2);
-    double I = 5E10;         // Light intensity (Watts)
+    double I = 1E10;         // Light intensity (Watts)
     int nb_rays_monte_carlo; // Number of rays for Monte Carlo (error decreases in 1/sqrt(N))
     if (INDIRECT_LIGHT || SOFT_SHADOWS || ANTIALIASING)
         nb_rays_monte_carlo = NUM_RAYS_MC;

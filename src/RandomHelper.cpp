@@ -8,7 +8,7 @@
 RandomHelper::RandomHelper()
 {
     std::random_device r;
-    for (int i = 0, N = omp_get_max_threads(); i < N; ++i)
+    for (int i = 0; i < omp_get_max_threads(); ++i)
     {
         this->generators.push_back(std::default_random_engine(r()));
         this->uniforms.push_back(std::uniform_real_distribution<double>(0.0, 1.0));
